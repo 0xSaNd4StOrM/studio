@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { CartProvider } from '@/hooks/use-cart';
+import { CartProvider } from '@/hooks/use-cart.tsx';
 import { Header } from '@/components/header';
 import { Toaster } from '@/components/ui/toaster';
 

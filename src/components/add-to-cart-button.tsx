@@ -1,6 +1,6 @@
 'use client';
 
-import { useCart } from '@/hooks/use-cart';
+import { useCart } from '@/hooks/use-cart.tsx';
 import type { Tour } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
