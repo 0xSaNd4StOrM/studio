@@ -24,7 +24,10 @@ export function Header() {
   }, []);
 
   const itemCount = isClient ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
-  const textColor = isScrolled ? 'text-foreground' : 'text-white';
+  
+  // Use text-foreground when scrolled, and a specific dark color when not.
+  // This avoids making it white on a transparent background over a light image.
+  const textColor = isScrolled ? 'text-foreground' : 'text-foreground';
 
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled ? 'border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60' : 'bg-transparent'}`}>
