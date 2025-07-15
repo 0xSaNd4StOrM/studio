@@ -3,7 +3,7 @@ import Image from 'next/image';
 import type { Tour } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, MapPin, Star, Heart, Users, ArrowRight } from 'lucide-react';
+import { Clock, MapPin, Star, Heart, ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface TourCardProps {
@@ -25,6 +25,10 @@ export function TourCard({ tour }: TourCardProps) {
             data-ai-hint={`${tour.destination} ${tour.type}`}
           />
         </Link>
+        <Badge variant="secondary" className="absolute top-3 left-3 bg-white/80 hover:bg-white text-gray-700">
+            <MapPin className="h-3 w-3 mr-1.5" />
+            {tour.destination}
+        </Badge>
         <Button variant="secondary" size="icon" className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/80 hover:bg-white text-gray-700">
           <Heart className="h-4 w-4" />
           <span className="sr-only">Like</span>
@@ -32,15 +36,17 @@ export function TourCard({ tour }: TourCardProps) {
       </div>
 
       <CardContent className="p-4 space-y-3 flex flex-col flex-grow">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <MapPin className="h-4 w-4 text-primary" />
-            <span>{tour.destination}</span>
+        <div className="flex items-center text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-4 w-4" />
+            <span>{tour.duration} Days</span>
           </div>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-            <span>{tour.rating.toFixed(1)}</span>
-          </Badge>
+          <div className="flex-grow text-right">
+             <div className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                <span className="font-bold">{tour.rating.toFixed(1)}</span>
+             </div>
+          </div>
         </div>
         
         <h3 className="font-headline text-lg font-semibold h-12">
@@ -49,17 +55,6 @@ export function TourCard({ tour }: TourCardProps) {
           </Link>
         </h3>
         
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4" />
-            <span>{tour.duration} Days</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" />
-            <span>50+</span>
-          </div>
-        </div>
-
         <div className="border-t pt-3 mt-auto flex justify-between items-center">
             <p className="text-sm">
                 <span className="font-bold text-lg text-primary">${pricePerDay.toFixed(2)}</span>
@@ -67,7 +62,7 @@ export function TourCard({ tour }: TourCardProps) {
             </p>
             <Button variant="ghost" asChild className="text-primary hover:text-primary">
                 <Link href={`/tours/${tour.id}`}>
-                    Book Now <ArrowRight className="ml-2 h-4 w-4" />
+                    Details <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
             </Button>
         </div>
