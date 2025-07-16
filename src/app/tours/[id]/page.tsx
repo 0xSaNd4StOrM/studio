@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Clock, MapPin, Star, Tag, Users, Minus, Plus, ShoppingCart } from 'lucide-react';
+import { Clock, MapPin, Star, Tag, Users, Minus, Plus, ShoppingCart, CheckCircle, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 type TourDetailsPageProps = {
@@ -75,13 +75,60 @@ export default function TourDetailsPage({ params }: TourDetailsPageProps) {
             <CardTitle className="font-headline text-4xl text-primary">{tour.name}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-6">{tour.description}</p>
-            <div className="grid grid-cols-2 gap-4 text-sm mb-6 border-t pt-6">
+            <div className="grid grid-cols-2 gap-4 text-sm mb-6">
               <div className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary"/> <span>{tour.destination}</span></div>
-              <div className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary"/> <span>{tour.duration} days</span></div>
+              <div className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary"/> <span>{tour.durationText ?? `${tour.duration} days`}</span></div>
               <div className="flex items-center gap-2"><Star className="h-5 w-5 text-primary fill-primary"/> <span>{tour.rating}/5.0</span></div>
-              <div className="flex items-center gap-2"><Tag className="h-5 w-5 text-primary"/> <span>{tour.type}</span></div>
+              <div className="flex items-center gap-2"><Tag className="h-5 w-5 text-primary"/> <span>{tour.tourType ?? tour.type}</span></div>
             </div>
+            <Separator className="my-6" />
+            <p className="text-muted-foreground mb-6">{tour.description}</p>
+            
+            {(tour.includes || tour.excludes) && (
+              <>
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  {tour.includes && (
+                    <div>
+                      <h3 className="font-bold text-lg mb-2 text-green-700">Tour Includes</h3>
+                      <ul className="space-y-2 text-sm">
+                        {tour.includes.map((item, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {tour.excludes && (
+                     <div>
+                      <h3 className="font-bold text-lg mb-2 text-destructive">Tour Excludes</h3>
+                      <ul className="space-y-2 text-sm">
+                        {tour.excludes.map((item, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <XCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <Card className="bg-muted/50">
+              <CardHeader>
+                <CardTitle className="text-xl text-primary">Tour Details</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm space-y-2">
+                <p><span className="font-semibold text-foreground">Duration:</span> {tour.durationText ?? `${tour.duration} days`}</p>
+                <p><span className="font-semibold text-foreground">Type:</span> {tour.tourType ?? tour.type}</p>
+                {tour.availabilityDescription && <p><span className="font-semibold text-foreground">Availability:</span> {tour.availabilityDescription}</p>}
+                {tour.pickupAndDropoff && <p><span className="font-semibold text-foreground">Pick up & drop off:</span> {tour.pickupAndDropoff}</p>}
+              </CardContent>
+            </Card>
+
           </CardContent>
         </Card>
 

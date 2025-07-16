@@ -121,13 +121,13 @@ const tours: Tour[] = [
     name: 'Alexandria: Pearl of the Mediterranean',
     destination: 'Alexandria',
     type: 'Cultural',
-    duration: 3,
+    duration: 1,
     priceTiers: [
         { minPeople: 1, maxPeople: 1, pricePerAdult: 180, pricePerChild: 90 },
         { minPeople: 2, maxPeople: 5, pricePerAdult: 110, pricePerChild: 60 },
         { minPeople: 6, maxPeople: null, pricePerAdult: 95, pricePerChild: 50 },
     ],
-    description: 'Explore the historic city of Alexandria. Visit the modern library, Roman amphitheater, and enjoy the Mediterranean sea breeze.',
+    description: 'Day tour to Alexandria 10 hours starts every day from 7 am to 18:00 pm. Explore the historic city of Alexandria. Visit the modern library, Roman amphitheater, and enjoy the Mediterranean sea breeze.',
     itinerary: [
         { day: 1, activity: 'Arrival in Alexandria, check-in and walk along the Corniche' },
         { day: 2, activity: 'Visit the Library of Alexandria, Catacombs of Kom El Shoqafa, and Pompey\'s Pillar' },
@@ -136,6 +136,24 @@ const tours: Tour[] = [
     availability: false,
     image: 'https://images.unsplash.com/photo-1623674620242-613d6a7e6c0c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxBcHJpbCUyMDIwMjQlMjBBbGV4YW5kcmlhJTIwRWd5cHR8ZW58MHx8fHwxNzUyODgxMzcyfDA&ixlib=rb-4.1.0&q=80&w=1080',
     rating: 4.6,
+    durationText: "10 Hours",
+    tourType: "Private Tour",
+    availabilityDescription: "Runs Every day From 06:00 am to 18:00 pm",
+    pickupAndDropoff: "Customers' Location in either Cairo or Giza",
+    includes: [
+      "All pick up & drop off from customer location in Cairo",
+      "Entry Fees",
+      "Private Transfere from & to Cairo",
+      "Sharing Tour guide In Alexandria",
+      "Lunch at Local restaurant",
+      "All Taxes Services",
+      "Bottle of Water",
+      "All Transfers by Private A/C Vehicles Newest Model",
+    ],
+    excludes: [
+      "Personal items",
+      "Tipping",
+    ],
   }
 ];
 

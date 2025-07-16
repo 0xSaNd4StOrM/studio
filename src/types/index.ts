@@ -19,6 +19,14 @@ export type Tour = {
   rating: number;
   priceTiers: PriceTier[];
   price?: never; // Ensure old price field is not used
+
+  // Detailed tour information
+  durationText?: string;
+  tourType?: string;
+  availabilityDescription?: string;
+  pickupAndDropoff?: string;
+  includes?: string[];
+  excludes?: string[];
 };
 
 export type CartItem = {
