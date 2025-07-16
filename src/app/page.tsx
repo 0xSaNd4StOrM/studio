@@ -106,6 +106,7 @@ const articles = [
 export default function Home() {
   const tours = getTours();
   const categories = ["Adventure", "Relaxation", "Cultural", "Culinary", "Family", "Honeymoon"];
+  const egyptianDestinations = ["Cairo", "Luxor", "Aswan", "Sharm El Sheikh", "Hurghada", "Alexandria"];
 
   return (
     <div className="space-y-16 md:space-y-24">
@@ -113,12 +114,12 @@ export default function Home() {
       <section className="relative h-[80vh] min-h-[500px] flex items-center text-white">
         <div className="absolute inset-0 bg-black/50 z-10" />
         <Image
-          src="https://images.unsplash.com/photo-1646194117458-49fba634fbb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx0cm9waWNhbCUyMHBhcmFkaXNlfGVufDB8fHx8MTc1MjYyMjkwOXww&ixlib=rb-4.1.0&q=80&w=1080"
-          alt="Tropical paradise"
+          src="https://images.unsplash.com/photo-1572252433829-d6a3c659d832?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxFeWdpdCUyMHRyYXZlbHxlbnwwfHx8MTc1Mjg4MTM3Mnww&ixlib=rb-4.1.0&q=80&w=1080"
+          alt="Ancient Egyptian temples"
           fill
           className="object-cover"
           priority
-          data-ai-hint="tropical paradise"
+          data-ai-hint="Egypt travel"
         />
         <div className="container mx-auto px-4 relative z-20 text-center">
           <h1 className="font-headline text-4xl md:text-6xl font-bold leading-tight mb-4">Let's Make Your Best<br />Trip With Us</h1>
@@ -131,7 +132,7 @@ export default function Home() {
                 <Select>
                   <SelectTrigger className="bg-white text-foreground"><SelectValue placeholder="Destination" /></SelectTrigger>
                   <SelectContent>
-                     {Array.from(new Set(tours.map(tour => tour.destination))).map(destination => (
+                     {egyptianDestinations.map(destination => (
                         <SelectItem key={destination} value={destination.toLowerCase()}>{destination}</SelectItem>
                       ))}
                   </SelectContent>
@@ -401,3 +402,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
