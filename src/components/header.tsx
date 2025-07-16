@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Search, ArrowRight, Mail, Phone, MapPin, Twitter, Facebook, Instagram, ChevronDown, Heart } from 'lucide-react';
+import { ShoppingCart, Search, ArrowRight, Mail, Phone, MapPin, Twitter, Facebook, Instagram, ChevronDown, Heart, User } from 'lucide-react';
 import { useCart } from '@/hooks/use-cart.tsx';
 import { useWishlist } from '@/hooks/use-wishlist';
 import { Logo } from '@/components/logo';
@@ -60,7 +60,7 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const itemCount = isClient ? cartItems.reduce((sum, item) => sum + item.quantity, 0) : 0;
+  const itemCount = isClient ? cartItems.reduce((sum, item) => sum + (item.adults ?? 0) + (item.children ?? 0), 0) : 0;
   const wishlistItemCount = isClient ? wishlistItems.length : 0;
   
   const headerClasses = isScrolled 
@@ -148,8 +148,9 @@ export function Header() {
                   <span className="sr-only">Shopping Cart</span>
                   </Link>
               </Button>
-              <Button>
-                Request a Quote <ArrowRight className="ml-2 h-4 w-4"/>
+              <Button variant="outline">
+                <User className="mr-2 h-4 w-4"/>
+                Sign In
               </Button>
           </div>
         </div>
