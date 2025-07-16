@@ -26,6 +26,8 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  // In a production environment with middleware, this redirect is often sufficient.
+  // The check for NODE_ENV is a safeguard for local development.
   if (!user && (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production')) {
       return redirect('/admin');
   }
@@ -37,6 +39,8 @@ export default async function AdminLayout({
     return redirect('/admin');
   };
 
+  // If there's no user, we're on the login page.
+  // Render a minimal layout without the sidebar.
   if (!user) {
     return (
         <div className="flex min-h-screen bg-background">
@@ -45,6 +49,7 @@ export default async function AdminLayout({
     )
   }
 
+  // If there is a user, render the full dashboard layout with the sidebar.
   return (
     <SidebarProvider>
       <Sidebar>
