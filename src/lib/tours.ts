@@ -140,6 +140,13 @@ const tours: Tour[] = [
     tourType: "Private Tour",
     availabilityDescription: "Runs Every day From 06:00 am to 18:00 pm",
     pickupAndDropoff: "Customers' Location in either Cairo or Giza",
+    highlights: [
+      "Visit the Library of Alexandria, a modern architectural marvel.",
+      "Descend into the Catacombs of Kom El Shoqafa.",
+      "See the granite pillar of Pompey.",
+      "View the Citadel of Qaitbay from the outside.",
+      "Enjoy lunch at a local restaurant."
+    ],
     includes: [
       "All pick up & drop off from customer location in Cairo",
       "Entry Fees",

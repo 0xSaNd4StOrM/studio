@@ -25,6 +25,7 @@ export type Tour = {
   tourType?: string;
   availabilityDescription?: string;
   pickupAndDropoff?: string;
+  highlights?: string[];
   includes?: string[];
   excludes?: string[];
   cancellationPolicy?: string;

@@ -171,6 +171,24 @@ export default function TourDetailsPage({ params }: TourDetailsPageProps) {
       {/* Right Column: Pricing & Booking */}
       <div className="lg:col-span-2">
         <div className="sticky top-24 space-y-6">
+          {tour.highlights && (
+             <Card>
+              <CardHeader>
+                <CardTitle className="font-headline text-3xl">Highlights</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3 text-sm">
+                  {tour.highlights.map((highlight, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                      <span className="text-muted-foreground">{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-3xl">Pricing</CardTitle>
