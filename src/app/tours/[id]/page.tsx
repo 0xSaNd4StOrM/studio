@@ -5,18 +5,18 @@ import { useState, useMemo } from 'react';
 import { getTourById } from '@/lib/tours';
 import { notFound, useParams } from 'next/navigation';
 import Image from 'next/image';
+import { useCart } from '@/hooks/use-cart.tsx';
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 import { Clock, MapPin, Star, Tag, Users, Minus, Plus, ShoppingCart, CheckCircle, XCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 export default function TourDetailsPage() {
   const params = useParams();
-  const { toast } = useToast();
+  const { addToCart } = useCart();
   const tour = getTourById(params.id as string);
 
   const [adults, setAdults] = useState(1);
@@ -43,12 +43,9 @@ export default function TourDetailsPage() {
   }
 
   const handleBooking = () => {
-    // In a real app, this would add the detailed booking to the cart
-    // or proceed to a checkout page.
-    toast({
-      title: "Booking Added to Cart (Concept)",
-      description: `${tour.name} for ${adults} adults and ${children} children. Total: $${totalPrice.toLocaleString()}`,
-    });
+    if (tour) {
+      addToCart(tour, adults, children);
+    }
   }
 
   return (

@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (tour: Tour) => void;
+  addToCart: (tour: Tour, adults: number, children: number) => void;
   removeFromCart: (tourId: string) => void;
   clearCart: () => void;
   getCartTotal: () => number;
@@ -37,7 +37,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [cartItems]);
 
-  const addToCart = (tour: Tour) => {
+  const addToCart = (tour: Tour, adults: number, children: number) => {
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.tour.id === tour.id);
       if (existingItem) {
@@ -45,7 +45,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return prevItems;
       }
       toast({ title: "Added to Cart", description: `${tour.name} has been added to your cart.` });
-      return [...prevItems, { tour, quantity: 1 }];
+      // The quantity is now the total number of people for this item
+      return [...prevItems, { tour, quantity: adults + children, adults, children }];
     });
   };
 
@@ -59,7 +60,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + item.tour.price * item.quantity, 0);
+    return cartItems.reduce((total, item) => {
+      const totalPeople = item.adults! + item.children!;
+      const priceTier = item.tour.priceTiers.find(tier => 
+        totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
+      ) || item.tour.priceTiers[item.tour.priceTiers.length - 1];
+      
+      const itemTotal = (item.adults! * priceTier.pricePerAdult) + (item.children! * priceTier.pricePerChild);
+      return total + itemTotal;
+    }, 0);
   };
 
   return (

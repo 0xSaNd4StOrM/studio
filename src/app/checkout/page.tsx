@@ -127,18 +127,26 @@ export default function CheckoutPage() {
             <CardTitle>Order Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {cartItems.map(item => (
-              <div key={item.tour.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Image src={item.tour.image} alt={item.tour.name} width={64} height={64} className="rounded-md object-cover" />
-                  <div>
-                    <p className="font-semibold">{item.tour.name}</p>
-                    <p className="text-sm text-muted-foreground">x{item.quantity}</p>
+            {cartItems.map(item => {
+               const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
+               const priceTier = item.tour.priceTiers.find(tier => 
+                 totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
+               ) || item.tour.priceTiers[item.tour.priceTiers.length - 1];
+               const itemTotal = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
+
+              return (
+                <div key={item.tour.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Image src={item.tour.image} alt={item.tour.name} width={64} height={64} className="rounded-md object-cover" />
+                    <div>
+                      <p className="font-semibold">{item.tour.name}</p>
+                      <p className="text-sm text-muted-foreground">{item.adults} Adults, {item.children} Children</p>
+                    </div>
                   </div>
+                  <p className="font-semibold">${itemTotal.toLocaleString()}</p>
                 </div>
-                <p className="font-semibold">${(item.tour.price * item.quantity).toLocaleString()}</p>
-              </div>
-            ))}
+              )
+            })}
           </CardContent>
           <CardFooter className="flex justify-between items-center font-bold text-xl border-t pt-4 mt-4">
             <span>Total</span>

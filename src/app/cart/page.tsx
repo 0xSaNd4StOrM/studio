@@ -1,9 +1,9 @@
 "use client"
 
-import React from 'react';
+import React, { useActionState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { useCart } from '@/hooks/use-cart.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,7 +23,7 @@ function SubmitButton() {
 
 export default function CartPage() {
   const { cartItems, removeFromCart, getCartTotal } = useCart();
-  const [state, formAction] = useFormState(getAiSuggestions, { message: '', suggestions: [] });
+  const [state, formAction] = useActionState(getAiSuggestions, { message: '', suggestions: [] });
 
   const tourDescriptions = cartItems.map(item => item.tour.description);
 
@@ -51,7 +51,7 @@ export default function CartPage() {
                 <div className="ml-4 flex-grow">
                   <h2 className="font-bold text-lg">{item.tour.name}</h2>
                   <p className="text-sm text-muted-foreground">{item.tour.destination}</p>
-                  <p className="font-bold text-primary mt-2">${item.tour.price.toLocaleString()}</p>
+                  <p className="font-bold text-primary mt-2">${item.tour.priceTiers[0].pricePerAdult.toLocaleString()}</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.tour.id)}>
                   <Trash2 className="h-5 w-5 text-destructive" />
