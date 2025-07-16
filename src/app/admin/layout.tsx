@@ -26,8 +26,8 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return redirect('/admin');
+  if (!user && (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production')) {
+      return redirect('/admin');
   }
 
   const handleSignOut = async () => {
@@ -36,6 +36,14 @@ export default async function AdminLayout({
     await supabase.auth.signOut();
     return redirect('/admin');
   };
+
+  if (!user) {
+    return (
+        <div className="flex min-h-screen bg-background">
+            <main className="flex-1 p-6">{children}</main>
+        </div>
+    )
+  }
 
   return (
     <SidebarProvider>
