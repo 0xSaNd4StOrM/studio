@@ -64,6 +64,8 @@ export function Header() {
     ? 'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-md' 
     : 'bg-background';
 
+  const egyptianDestinations = ["Cairo", "Luxor", "Aswan", "Sharm El Sheikh", "Hurghada", "Alexandria"];
+
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300`}>
       <TopBar />
@@ -80,7 +82,21 @@ export function Header() {
           <nav className="hidden lg:flex items-center gap-8">
             <Link href="/" className="font-medium text-foreground transition-colors hover:text-primary">Home</Link>
             <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
-            <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center font-medium text-foreground transition-colors hover:text-primary focus:outline-none">
+                Destination
+                <ChevronDown className="relative top-[1px] ml-1 h-3 w-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {egyptianDestinations.map(destination => (
+                  <DropdownMenuItem key={destination} asChild>
+                    {/* In a real app, this would link to a filtered page e.g. /tours?destination=Cairo */}
+                    <Link href="/#tours">{destination}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center font-medium text-foreground transition-colors hover:text-primary focus:outline-none">
