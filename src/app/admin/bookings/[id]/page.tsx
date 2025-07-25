@@ -7,9 +7,8 @@ import { getBookingById } from '@/lib/bookings';
 import { getTourById } from '@/lib/tours';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Mail, Calendar, Hash, Users, DollarSign, Globe } from 'lucide-react';
+import { ArrowLeft, User, Mail, Calendar, Hash, Users, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
