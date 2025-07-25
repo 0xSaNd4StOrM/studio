@@ -1,6 +1,7 @@
 
 "use client"
 
+import * as React from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { Booking } from "@/types"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,12 +15,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { MoreHorizontal, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-export const columns: ColumnDef<Booking>[] = [
+interface ColumnsProps {
+  onUpdateStatus: (bookingId: string, status: Booking['status']) => void;
+  onDelete: (bookingId: string) => void;
+}
+
+export const columns = ({ onUpdateStatus, onDelete }: ColumnsProps): ColumnDef<Booking>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -123,8 +140,34 @@ export const columns: ColumnDef<Booking>[] = [
     id: "actions",
     cell: ({ row }) => {
       const booking = row.original
+      const [isAlertOpen, setIsAlertOpen] = React.useState(false);
 
       return (
+        <>
+        <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                booking and remove its data from our servers.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  onDelete(booking.id);
+                  setIsAlertOpen(false);
+                }}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -135,14 +178,22 @@ export const columns: ColumnDef<Booking>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>View Booking Details</DropdownMenuItem>
-            <DropdownMenuItem>Mark as Confirmed</DropdownMenuItem>
-            <DropdownMenuItem>Mark as Cancelled</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onUpdateStatus(booking.id, 'Confirmed')}>
+                Mark as Confirmed
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onUpdateStatus(booking.id, 'Cancelled')}>
+                Mark as Cancelled
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
+            <DropdownMenuItem 
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                onClick={() => setIsAlertOpen(true)}
+            >
               Delete Booking
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </>
       )
     },
   },

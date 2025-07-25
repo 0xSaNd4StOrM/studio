@@ -68,6 +68,10 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
     },
+    meta: {
+        // This is where you would pass your update functions if needed,
+        // but for this implementation we pass them directly to columns.
+    }
   })
 
   return (
