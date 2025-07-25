@@ -143,7 +143,7 @@ export default function AdminLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#" isActive={pathname.startsWith('/admin/settings')}>
+              <SidebarMenuButton href="/admin/settings" isActive={pathname.startsWith('/admin/settings')}>
                 <Settings />
                 <span>Settings</span>
               </SidebarMenuButton>
