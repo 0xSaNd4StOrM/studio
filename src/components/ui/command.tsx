@@ -122,6 +122,9 @@ const CommandItem = React.forwardRef<
       "hover:bg-accent hover:text-accent-foreground",
       className
     )}
+    onMouseDown={(e) => {
+        e.preventDefault();
+    }}
     {...props}
   />
 ))
