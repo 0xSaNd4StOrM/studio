@@ -24,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { MoreHorizontal, ArrowUpDown } from "lucide-react"
 import Link from "next/link"
@@ -177,7 +176,9 @@ export const columns = ({ onUpdateStatus, onDelete }: ColumnsProps): ColumnDef<B
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View Booking Details</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/admin/bookings/${booking.id}`}>View Booking Details</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onUpdateStatus(booking.id, 'Confirmed')}>
                 Mark as Confirmed
             </DropdownMenuItem>
