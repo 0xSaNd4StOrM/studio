@@ -75,12 +75,15 @@ export function Combobox({
                 selectedOptions.map((option) => (
                     <Badge variant="secondary" key={option.value} className="mr-1">
                         {option.label}
-                        <button 
+                        <div 
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if(e.key === "Enter" || e.key === " ") handleRemove(e as any, option.value) }}
                             onClick={(e) => handleRemove(e, option.value)}
                             className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                         >
                             <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                        </button>
+                        </div>
                     </Badge>
                 ))
               ) : (
