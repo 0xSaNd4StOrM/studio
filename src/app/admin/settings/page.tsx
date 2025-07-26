@@ -9,12 +9,21 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageUploader } from "@/components/admin/image-uploader";
+import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
   agencyName: z.string().min(1, "Agency name is required."),
   phoneNumber: z.string().min(10, "A valid phone number is required."),
   contactEmail: z.string().email("Invalid email address."),
+  address: z.string().min(1, "Address is required."),
   logo: z.array(z.any()).optional(),
+  aboutUs: z.string().min(10, "About us description should be at least 10 characters."),
+  socialMedia: z.object({
+    facebook: z.string().url().or(z.literal("")),
+    twitter: z.string().url().or(z.literal("")),
+    instagram: z.string().url().or(z.literal("")),
+    linkedin: z.string().url().or(z.literal("")),
+  }),
   currentPassword: z.string().optional(),
   newPassword: z.string().optional(),
   confirmPassword: z.string().optional(),
@@ -40,7 +49,15 @@ export default function SettingsPage() {
             agencyName: "Wanderlust Hub",
             phoneNumber: "+1 (234) 567-890",
             contactEmail: "contact@wanderlusthub.com",
+            address: "123 Adventure Lane, Travel City, 98765",
             logo: [],
+            aboutUs: "Wanderlust Hub is your premier partner for unforgettable journeys in Egypt. We are dedicated to providing curated travel experiences that blend adventure, culture, and relaxation.",
+            socialMedia: {
+                facebook: "https://facebook.com",
+                twitter: "https://twitter.com",
+                instagram: "https://instagram.com",
+                linkedin: "https://linkedin.com",
+            },
             currentPassword: "",
             newPassword: "",
             confirmPassword: "",
@@ -111,6 +128,67 @@ export default function SettingsPage() {
                         />
                     </CardContent>
                 </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>About & Address</CardTitle>
+                        <CardDescription>Information that may appear on your website's footer or contact page.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField control={form.control} name="address" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Agency Address</FormLabel>
+                                <FormControl><Input placeholder="123 Main St, Anytown, USA" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="aboutUs" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>About Us</FormLabel>
+                                <FormControl><Textarea placeholder="Tell us a little about your agency" {...field} rows={4} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Social Media</CardTitle>
+                        <CardDescription>Links to your agency's social media profiles.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-6">
+                         <FormField control={form.control} name="socialMedia.facebook" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Facebook</FormLabel>
+                                <FormControl><Input placeholder="https://facebook.com/your-page" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                         <FormField control={form.control} name="socialMedia.twitter" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Twitter / X</FormLabel>
+                                <FormControl><Input placeholder="https://twitter.com/your-handle" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                         <FormField control={form.control} name="socialMedia.instagram" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Instagram</FormLabel>
+                                <FormControl><Input placeholder="https://instagram.com/your-profile" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                         <FormField control={form.control} name="socialMedia.linkedin" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>LinkedIn</FormLabel>
+                                <FormControl><Input placeholder="https://linkedin.com/company/your-company" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </CardContent>
+                </Card>
+
 
                  <Card>
                     <CardHeader>
