@@ -35,6 +35,11 @@ const defaultHomePageData = {
             description: "On Flight Ticket Grab This Now."
         }
     },
+    lastMinuteOffers: {
+        discount: "50%",
+        pretitle: "Deals & Offers",
+        title: "Incredible Last-Minute Offers",
+    },
     testimonials: [
         {
           name: 'Brooklyn Simmons',
@@ -99,6 +104,11 @@ const formSchema = z.object({
           description: z.string().min(1, "Description is required"),
       }),
   }),
+  lastMinuteOffers: z.object({
+    discount: z.string().min(1, "Discount is required"),
+    pretitle: z.string().min(1, "Pre-title is required"),
+    title: z.string().min(1, "Title is required"),
+  }),
   testimonials: z.array(testimonialSchema),
   videoSection: z.object({
     pretitle: z.string().min(1, "Pre-title is required"),
@@ -152,7 +162,7 @@ export function HomePageEditorForm() {
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4', 'item-5', 'item-6']} className="w-full">
+            <Accordion type="multiple" defaultValue={['item-1', 'item-2', 'item-3', 'item-4', 'item-5', 'item-6', 'item-7']} className="w-full">
                 <AccordionItem value="item-1">
                     <AccordionTrigger className="text-lg font-semibold">Hero Section</AccordionTrigger>
                     <AccordionContent>
@@ -254,7 +264,38 @@ export function HomePageEditorForm() {
                     </AccordionContent>
                 </AccordionItem>
 
-                <AccordionItem value="item-4">
+                 <AccordionItem value="item-4">
+                    <AccordionTrigger className="text-lg font-semibold">Last Minute Offers</AccordionTrigger>
+                    <AccordionContent>
+                        <Card className="border-0 shadow-none">
+                            <CardContent className="pt-6 grid gap-6">
+                                <FormField control={form.control} name="lastMinuteOffers.discount" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Discount Text</FormLabel>
+                                        <FormControl><Input {...field} placeholder="e.g., 50%" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="lastMinuteOffers.pretitle" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Pre-title</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="lastMinuteOffers.title" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Title</FormLabel>
+                                        <FormControl><Input {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            </CardContent>
+                        </Card>
+                    </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="item-5">
                     <AccordionTrigger className="text-lg font-semibold">Testimonials</AccordionTrigger>
                     <AccordionContent>
                         <Card className="border-0 shadow-none">
@@ -314,7 +355,7 @@ export function HomePageEditorForm() {
                     </AccordionContent>
                 </AccordionItem>
                 
-                 <AccordionItem value="item-5">
+                 <AccordionItem value="item-6">
                     <AccordionTrigger className="text-lg font-semibold">Video Section</AccordionTrigger>
                     <AccordionContent>
                         <Card className="border-0 shadow-none">
@@ -338,7 +379,7 @@ export function HomePageEditorForm() {
                     </AccordionContent>
                 </AccordionItem>
                 
-                 <AccordionItem value="item-6">
+                 <AccordionItem value="item-7">
                     <AccordionTrigger className="text-lg font-semibold">News & Articles Section</AccordionTrigger>
                     <AccordionContent>
                         <Card className="border-0 shadow-none">
