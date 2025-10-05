@@ -1,18 +1,26 @@
 'use client'
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { getTours } from '@/lib/tours';
+import { getTours } from '@/lib/supabase/tours';
 import { TourCard } from '@/components/tour-card';
 import type { Tour } from '@/types';
 
 export default function SearchResultsPage() {
+  return (
+    <Suspense fallback={<div>Loading search results...</div>}>
+      <SearchResultsContent />
+    </Suspense>
+  );
+}
+
+async function SearchResultsContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const destination = searchParams.get('destination') || '';
   const type = searchParams.get('type') || '';
 
-  const tours = getTours();
+  const tours = await getTours();
 
   const filteredTours = tours.filter(tour => {
     const matchesQuery = query ? tour.name?.toLowerCase().includes(query.toLowerCase()) : true;
