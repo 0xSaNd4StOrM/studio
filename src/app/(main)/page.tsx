@@ -1,5 +1,3 @@
-
-
 "use client"
 
 import React from 'react';
@@ -102,7 +100,7 @@ const articles = [
     image: 'https://images.unsplash.com/photo-1502602898657-3e91760c0337?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80',
     aiHint: 'norway landscape'
   },
-]
+];
 
 const heroImages = [
   {
@@ -122,67 +120,77 @@ const heroImages = [
   }
 ];
 
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
   const tours = getTours();
   const categories = ["Adventure", "Relaxation", "Cultural", "Culinary", "Family", "Honeymoon"];
   const egyptianDestinations = ["Cairo", "Luxor", "Aswan", "Sharm El Sheikh", "Hurghada", "Alexandria"];
 
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [destination, setDestination] = React.useState('');
+  const [tourType, setTourType] = React.useState('');
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchQuery) {
+      params.set('q', searchQuery);
+    }
+    if (destination) {
+      params.set('destination', destination);
+    }
+    if (tourType) {
+      params.set('type', tourType);
+    }
+    router.push(`/tours/search?${params.toString()}`);
+  };
+
   return (
     <div className="space-y-16 md:space-y-24">
       {/* Hero Section */}
-      <section className="relative h-[80vh] min-h-[500px]">
-        <Carousel
-          opts={{ loop: true }}
-          className="w-full h-full"
-        >
-          <CarouselContent className="h-full">
-            {heroImages.map((image, index) => (
-              <CarouselItem key={index} className="h-full">
-                <div className="relative h-full w-full">
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    className="object-cover"
-                    priority={index === 0}
-                    data-ai-hint={image.hint}
-                  />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <div className="absolute inset-0 bg-black/50 z-10" />
-        </Carousel>
-
-        <div className="absolute inset-0 flex items-center justify-center z-20">
-          <div className="container mx-auto px-4 text-center text-white">
-            <h1 className="font-headline text-4xl md:text-6xl font-bold leading-tight mb-4">Let's Make Your Best<br />Trip With Us</h1>
-            <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8">
-              Explore the world with our curated travel packages. Adventure awaits!
-            </p>
-            <div className="max-w-3xl mx-auto p-4 bg-white/20 backdrop-blur-sm border-0 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <Input placeholder="Search tour..." className="bg-white text-foreground col-span-1 md:col-span-2" />
-                  <Select>
-                    <SelectTrigger className="bg-white text-foreground"><SelectValue placeholder="Destination" /></SelectTrigger>
-                    <SelectContent>
-                      {egyptianDestinations.map(destination => (
-                          <SelectItem key={destination} value={destination.toLowerCase()}>{destination}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <Select>
-                    <SelectTrigger className="bg-white text-foreground"><SelectValue placeholder="Type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cultural">Cultural</SelectItem>
-                      <SelectItem value="adventure">Adventure</SelectItem>
-                      <SelectItem value="culinary">Culinary</SelectItem>
-                      <SelectItem value="relaxation">Relaxation</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button size="lg" className="w-full">Search</Button>
-                </div>
-            </div>
+      <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center">
+        <Image
+          src="https://images.unsplash.com/photo-1572252433829-d6a3c659d832?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxFeWdpdCUyMHRyYXZlbHxlbnwwfHx8MTc1Mjg4MTM3Mnww&ixlib=rb-4.1.0&q=80&w=1080"
+          alt="Ancient Egyptian temples"
+          fill
+          className="object-cover"
+          priority
+          data-ai-hint="Egypt travel"
+        />
+        <div className="absolute inset-0 bg-black/50 z-10" />
+        <div className="relative z-20 container mx-auto px-4 text-center text-white">
+          <h1 className="font-headline text-4xl md:text-6xl font-bold leading-tight mb-4">Let's Make Your Best<br />Trip With Us</h1>
+          <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8">
+            Explore the world with our curated travel packages. Adventure awaits!
+          </p>
+          <div className="max-w-3xl mx-auto p-4 bg-white/20 backdrop-blur-sm border-0 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <Input 
+                  placeholder="Search tour..." 
+                  className="bg-white text-foreground col-span-1 md:col-span-2"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Select value={destination} onValueChange={setDestination}>
+                  <SelectTrigger className="bg-white text-foreground"><SelectValue placeholder="Destination" /></SelectTrigger>
+                  <SelectContent>
+                    {egyptianDestinations.map(dest => (
+                        <SelectItem key={dest} value={dest.toLowerCase()}>{dest}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Select value={tourType} onValueChange={setTourType}>
+                  <SelectTrigger className="bg-white text-foreground"><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cultural">Cultural</SelectItem>
+                    <SelectItem value="adventure">Adventure</SelectItem>
+                    <SelectItem value="culinary">Culinary</SelectItem>
+                    <SelectItem value="relaxation">Relaxation</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="lg" className="w-full" onClick={handleSearch}>Search</Button>
+              </div>
           </div>
         </div>
       </section>
@@ -262,7 +270,7 @@ export default function Home() {
               <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">Popular Tours We Offer</h2>
             </div>
             <Button variant="outline" asChild>
-                <Link href="#">View All Tour <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                <Link href="/tours">View All Tour <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
