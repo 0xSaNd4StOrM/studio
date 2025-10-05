@@ -1,13 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import type { Tour, CartItem } from '@/types';
+import type { Tour, CartItem, UpsellItem } from '@/types';
 import { useToast } from "@/hooks/use-toast"
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (tour: Tour, adults: number, children: number, date?: Date) => void;
-  removeFromCart: (tourId: string) => void;
+  addToCart: (product: Tour | UpsellItem, productType: 'tour' | 'upsell', adults?: number, children?: number, date?: Date, quantity?: number) => void;
+  removeFromCart: (productId: string, productType: 'tour' | 'upsell') => void;
   clearCart: () => void;
   getCartTotal: () => number;
 }
@@ -37,34 +37,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [cartItems]);
 
-  const addToCart = useCallback((tour: Tour, adults: number, children: number, date?: Date) => {
+  const addToCart = useCallback((product: Tour | UpsellItem, productType: 'tour' | 'upsell', adults?: number, children?: number, date?: Date, quantity?: number) => {
     let toastMessage: { title: string; description: string; } | null = null;
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.tour.id === tour.id);
+      const existingItem = prevItems.find(item => item.product.id === product.id && item.productType === productType);
       if (existingItem) {
-        toastMessage = { title: "Already in Cart", description: `${tour.name} is already in your cart.` };
+        toastMessage = { title: "Already in Cart", description: `${product.name} is already in your cart.` };
         return prevItems;
       }
-      toastMessage = { title: "Added to Cart", description: `${tour.name} has been added to your cart.` };
-      return [...prevItems, { tour, quantity: adults + children, adults, children, date }];
+      toastMessage = { title: "Added to Cart", description: `${product.name} has been added to your cart.` };
+      return [...prevItems, { product, productType, adults, children, date, quantity }];
     });
     if (toastMessage) {
         toast(toastMessage);
     }
   }, [toast]);
 
-  const removeFromCart = useCallback((tourId: string) => {
-    let tourName: string | undefined;
+  const removeFromCart = useCallback((productId: string, productType: 'tour' | 'upsell') => {
+    let productName: string | undefined;
     setCartItems(prevItems => {
-        const itemToRemove = prevItems.find(item => item.tour.id === tourId);
+        const itemToRemove = prevItems.find(item => item.product.id === productId && item.productType === productType);
         if (itemToRemove) {
-            tourName = itemToRemove.tour.name;
+            productName = itemToRemove.product.name;
         }
-        return prevItems.filter(item => item.tour.id !== tourId)
+        return prevItems.filter(item => !(item.product.id === productId && item.productType === productType));
     });
     
-    if (tourName) {
-      toast({ title: "Removed from Cart", description: `"${tourName}" has been removed from your cart.` });
+    if (productName) {
+      toast({ title: "Removed from Cart", description: `"${productName}" has been removed from your cart.` });
     }
   }, [toast]);
 
@@ -74,13 +74,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const getCartTotal = useCallback(() => {
     return cartItems.reduce((total, item) => {
-      const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
-      const priceTier = item.tour.priceTiers.find(tier => 
-        totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
-      ) || item.tour.priceTiers[item.tour.priceTiers.length - 1];
-      
-      const itemTotal = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
-      return total + itemTotal;
+      if (item.productType === 'tour') {
+        const tour = item.product as Tour;
+        const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
+        const priceTier = tour.priceTiers.find(tier => 
+          totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
+        ) || tour.priceTiers[tour.priceTiers.length - 1];
+        
+        const itemTotal = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
+        return total + itemTotal;
+      } else if (item.productType === 'upsell') {
+        const upsellItem = item.product as UpsellItem;
+        return total + (upsellItem.price * (item.quantity ?? 1));
+      }
+      return total;
     }, 0);
   }, [cartItems]);
 

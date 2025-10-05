@@ -111,17 +111,26 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
             {booking.bookingItems.map((item) => (
               <div key={item.id} className="border rounded-md p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <Link href={`/tours/${item.tours?.slug}`} className="text-lg font-semibold text-primary hover:underline">
-                    {item.tours?.name || 'Unknown Tour'}
-                  </Link>
-                  <p className="text-muted-foreground text-sm">Tour ID: {item.tourId}</p>
+                  {item.tourId && item.tours ? (
+                    <Link href={`/tours/${item.tours.slug}`} className="text-lg font-semibold text-primary hover:underline">
+                      {item.tours.name}
+                    </Link>
+                  ) : item.upsellItemId && item.upsellItems ? (
+                    <p className="text-lg font-semibold">{item.upsellItems.name}</p>
+                  ) : (
+                    <p className="text-lg font-semibold">Unknown Item</p>
+                  )}
+                  {item.tourId && <p className="text-muted-foreground text-sm">Tour ID: {item.tourId}</p>}
+                  {item.upsellItemId && <p className="text-muted-foreground text-sm">Upsell Item ID: {item.upsellItemId}</p>}
                   {item.itemDate && <p className="text-muted-foreground text-sm">Date: {format(new Date(item.itemDate), 'PPP')}</p>}
                 </div>
                 <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{item.adults} Adults, {item.children} Children</span>
-                  </div>
+                  {item.tourId && (
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{item.adults} Adults, {item.children} Children</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <span>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(item.price)}</span>

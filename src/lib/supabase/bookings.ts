@@ -24,7 +24,7 @@ export async function getBookings(): Promise<Booking[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, booking_items(*, tours(name, slug))')
+    .select('*, booking_items(*, tours(name, slug), upsell_items(name, price))')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -38,7 +38,7 @@ export async function getBookingById(id: string): Promise<Booking | null> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('bookings')
-    .select('*, booking_items(*, tours(name, slug))')
+    .select('*, booking_items(*, tours(name, slug), upsell_items(name, price))')
     .eq('id', id)
     .single();
 
@@ -99,8 +99,8 @@ export async function createBooking(data: CreateBookingData) {
     .insert({
       customer_name: data.customerName,
       customer_email: data.customerEmail,
-      phone_number: data.phoneNumber, // Assuming you'll add this column to your DB
-      nationality: data.nationality, // Assuming you'll add this column to your DB
+      phone_number: data.phoneNumber,
+      nationality: data.nationality,
       total_price: data.totalPrice,
       status: 'Pending', // Default status
       booking_date: new Date().toISOString(),
@@ -116,21 +116,37 @@ export async function createBooking(data: CreateBookingData) {
   const bookingId = bookingData.id;
 
   // 2. Insert into booking_items table
-  const bookingItemsToInsert = data.cartItems.map(item => ({
-    booking_id: bookingId,
-    tour_id: item.tour.id,
-    adults: item.adults,
-    children: item.children,
-    item_date: item.date?.toISOString(), // Store the specific date for this item
-    price: (() => {
+  const bookingItemsToInsert = data.cartItems.map(item => {
+    let itemPrice = 0;
+    let tourId: string | undefined;
+    let upsellItemId: string | undefined;
+
+    if (item.productType === 'tour') {
+      const tour = item.product as any;
+      tourId = tour.id;
       const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
-      const tier = item.tour.priceTiers.find(
-        t => totalPeople >= t.minPeople && (t.maxPeople === null || totalPeople <= t.maxPeople)
-      );
-      if (!tier) return 0;
-      return (item.adults ?? 0) * (tier.pricePerAdult ?? 0) + (item.children ?? 0) * (tier.pricePerChild ?? 0);
-    })(),
-  }));
+      const priceTier = tour.priceTiers.find((tier: any) =>
+          totalPeople >= tier.minPeople && 
+          (tier.maxPeople === null || totalPeople <= tier.maxPeople)
+      ) || tour.priceTiers[tour.priceTiers.length - 1];
+      
+      itemPrice = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
+    } else if (item.productType === 'upsell') {
+      const upsellItem = item.product as any;
+      upsellItemId = upsellItem.id;
+      itemPrice = upsellItem.price * (item.quantity ?? 1);
+    }
+
+    return {
+      booking_id: bookingId,
+      tour_id: tourId || null,
+      upsell_item_id: upsellItemId || null,
+      adults: item.adults ?? 0,
+      children: item.children ?? 0,
+      item_date: item.date || null,
+      price: itemPrice,
+    };
+  });
 
   const { error: itemsError } = await supabase
     .from('booking_items')

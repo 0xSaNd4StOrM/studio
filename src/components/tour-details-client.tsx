@@ -42,7 +42,7 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
 
   const handleBooking = () => {
     if (tour && date) {
-      addToCart(tour, adults, children, date);
+      addToCart(tour, 'tour', adults, children, date);
     }
   }
 

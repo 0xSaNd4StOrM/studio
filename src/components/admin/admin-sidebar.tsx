@@ -6,7 +6,7 @@ import {
   Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarInset
 } from '@/components/ui/sidebar';
 import {
-  Home, Globe, Calendar, Settings, UserCircle, Users, Newspaper, PanelLeft, LayoutDashboard
+  Home, Globe, Calendar, Settings, UserCircle, Users, Newspaper, PanelLeft, LayoutDashboard, Tag
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ const menuItems = [
   { href: '/admin/customers', label: 'Customers', icon: Users },
   { href: '/admin/blog', label: 'Blog', icon: Newspaper },
   { href: '/admin/home-page-editor', label: 'Home Page Editor', icon: LayoutDashboard },
+  { href: '/admin/upsell-items', label: 'Upsell Items', icon: Tag },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

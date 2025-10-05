@@ -143,24 +143,37 @@ export default function CheckoutPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {cartItems.map(item => {
-               const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
-               const priceTier = item.tour.priceTiers.find(tier => 
-                 totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
-               ) || item.tour.priceTiers[item.tour.priceTiers.length - 1];
-               const itemTotal = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
+               let itemTotal = 0;
+               let productName = item.product.name;
+               let productDescription = '';
+               let productImage = '';
+
+               if (item.productType === 'tour') {
+                 const tour = item.product as any;
+                 productImage = tour.images[0];
+                 productDescription = `${item.adults} Adults, ${item.children} Children`;
+                 if (item.date) {
+                   productDescription += `, ${format(new Date(item.date), "PPP")}`;
+                 }
+                 const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
+                 const priceTier = tour.priceTiers.find((tier: { minPeople: number; maxPeople: number | null; pricePerAdult: number; pricePerChild: number }) =>
+                   totalPeople >= tier.minPeople && (tier.maxPeople === null || totalPeople <= tier.maxPeople)
+                 ) || tour.priceTiers[tour.priceTiers.length - 1];
+                 itemTotal = ((item.adults ?? 0) * priceTier.pricePerAdult) + ((item.children ?? 0) * priceTier.pricePerChild);
+               } else if (item.productType === 'upsell') {
+                 const upsellItem = item.product as any;
+                 productImage = '/placeholder-upsell.png'; // Placeholder for upsell items
+                 productDescription = upsellItem.description || 'Additional Service';
+                 itemTotal = upsellItem.price * (item.quantity ?? 1);
+               }
 
               return (
-                <div key={item.tour.id} className="flex items-center justify-between">
+                <div key={item.product.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <Image src={item.tour.images[0]} alt={item.tour.name} width={64} height={64} className="rounded-md object-cover" />
+                    <Image src={productImage} alt={productName} width={64} height={64} className="rounded-md object-cover" />
                     <div>
-                      <p className="font-semibold">{item.tour.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.adults} Adults, {item.children} Children</p>
-                       {item.date && (
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(item.date), "PPP")}
-                        </p>
-                      )}
+                      <p className="font-semibold">{productName}</p>
+                      <p className="text-sm text-muted-foreground">{productDescription}</p>
                     </div>
                   </div>
                   <p className="font-semibold">${itemTotal.toLocaleString()}</p>

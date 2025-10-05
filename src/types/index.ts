@@ -1,4 +1,3 @@
-
 export type PriceTier = {
   minPeople: number;
   maxPeople: number | null; // null for 'and up'
@@ -32,26 +31,43 @@ export type Tour = {
   cancellationPolicy?: string;
 };
 
-export type CartItem = {
-  tour: Tour;
-  quantity: number; // This might represent adults now, or be refactored
-  adults?: number;
-  children?: number;
-  date?: Date;
+export type UpsellItem = {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  type: 'service' | 'tour_addon';
+  relatedTourId?: string;
+  isActive: boolean;
+  createdAt: string;
 };
 
 export type BookingItem = {
   id: string;
   bookingId: string;
-  tourId: string;
+  tourId?: string; // Now optional
+  upsellItemId?: string; // New: link to upsell item
   adults: number;
   children: number;
   price: number;
-  itemDate?: string; // New: specific date for this booking item
-  tours?: { // This will be populated by a join query
+  itemDate?: string;
+  tours?: { // from the join
     name: string;
     slug: string;
   };
+  upsellItems?: { // New: from the join
+    name: string;
+    price: number;
+  };
+};
+
+export type CartItem = {
+  product: Tour | UpsellItem;
+  productType: 'tour' | 'upsell';
+  adults?: number; // Only for tours
+  children?: number; // Only for tours
+  date?: Date; // Only for tours
+  quantity?: number; // For upsell items, if they can have quantity (e.g., 2 SIM cards)
 };
 
 export type Booking = {
