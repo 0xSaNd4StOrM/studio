@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname, redirect } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarContent,
@@ -64,16 +64,9 @@ export default function AdminLayout({
     await supabase.auth.signOut();
     window.location.href = '/admin';
   };
-  
-  if (!user && (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'production')) {
-      redirect('/admin');
-  }
 
-  if (!user && process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_VERCEL_ENV !== 'production' && pathname !== '/admin') {
-     // Don't redirect in dev, just show the content which will be the login page
-  } else if (user && pathname === '/admin') {
-     redirect('/admin/dashboard');
-  }
+  // Rely on middleware for auth-based redirects in production.
+  // In the layout, simply render login content when no user is present.
 
 
   if (!user) {
