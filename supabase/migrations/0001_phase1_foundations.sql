@@ -20,13 +20,15 @@ returns boolean language sql stable as $$
 $$;
 
 alter table public.admin_users enable row level security;
+-- Remove self-referential policies to avoid recursion
 drop policy if exists "Admins manage admin_users" on public.admin_users;
-create policy "Admins manage admin_users" on public.admin_users for all using (public.current_user_is_admin());
 drop policy if exists "Admins read admin_users" on public.admin_users;
-create policy "Admins read admin_users" on public.admin_users for select using (public.current_user_is_admin());
 -- Allow authenticated users to read their own admin membership row
 drop policy if exists "Self read admin membership" on public.admin_users;
 create policy "Self read admin membership" on public.admin_users for select using (user_id = auth.uid());
+-- Allow service role to manage admin_users (dashboard / backend)
+drop policy if exists "Service role manage admin_users" on public.admin_users;
+create policy "Service role manage admin_users" on public.admin_users for all using ((auth.jwt()->>'role') = 'service_role');
 
 -- Blog posts
 create table if not exists public.posts (
@@ -60,7 +62,20 @@ alter table public.home_page_content enable row level security;
 drop policy if exists "Public read homepage" on public.home_page_content;
 create policy "Public read homepage" on public.home_page_content for select using (true);
 drop policy if exists "Admins manage homepage" on public.home_page_content;
-create policy "Admins manage homepage" on public.home_page_content for all using (public.current_user_is_admin());
+create policy "Admins manage homepage" on public.home_page_content for all using (
+  ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+  or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+  or public.current_user_is_admin()
+)
+with check (
+  ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+  or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+  or public.current_user_is_admin()
+);
 
 -- Settings (singleton)
 create table if not exists public.settings (
@@ -74,7 +89,20 @@ alter table public.settings enable row level security;
 drop policy if exists "Public read settings" on public.settings;
 create policy "Public read settings" on public.settings for select using (true);
 drop policy if exists "Admins manage settings" on public.settings;
-create policy "Admins manage settings" on public.settings for all using (public.current_user_is_admin());
+create policy "Admins manage settings" on public.settings for all using (
+  ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+  or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+  or public.current_user_is_admin()
+)
+with check (
+  ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+  or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+  or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+  or public.current_user_is_admin()
+);
 
 -- Customers
 create table if not exists public.customers (
@@ -98,5 +126,24 @@ create policy "Admins manage customers" on public.customers for all using (publi
 -- create policy "Admins manage blog images" on storage.objects for all using (bucket_id = 'blog' and public.current_user_is_admin());
 
 -- CMS assets (bucket: cms)
--- create policy "Public read cms assets" on storage.objects for select using (bucket_id = 'cms');
--- create policy "Admins manage cms assets" on storage.objects for all using (bucket_id = 'cms' and public.current_user_is_admin());
+drop policy if exists "Public read cms assets" on storage.objects;
+create policy "Public read cms assets" on storage.objects for select using (bucket_id = 'cms');
+drop policy if exists "Admins manage cms assets" on storage.objects;
+create policy "Admins manage cms assets" on storage.objects for all using (
+  bucket_id = 'cms' and (
+    ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+    or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+    or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+    or public.current_user_is_admin()
+  )
+)
+with check (
+  bucket_id = 'cms' and (
+    ((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    or ((auth.jwt() -> 'app_metadata' ->> 'is_admin') = 'true')
+    or ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin')
+    or ((auth.jwt() -> 'user_metadata' ->> 'is_admin') = 'true')
+    or public.current_user_is_admin()
+  )
+);

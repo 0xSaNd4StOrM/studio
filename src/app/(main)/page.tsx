@@ -45,6 +45,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 const categoryIcons = {
   Adventure: <Mountain className="h-8 w-8 text-primary" />,
@@ -55,36 +56,87 @@ const categoryIcons = {
   Honeymoon: <Plane className="h-8 w-8 text-primary" />,
 };
 
-const testimonials = [
-  {
-    name: "Brooklyn Simmons",
-    role: "Brooklyn Simmons",
-    avatar: "https://placehold.co/100x100.png",
-    rating: 5,
-    text: "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+const defaultContent = {
+  hero: {
+    title: "Let's Make Your Best<br />Trip With Us",
+    subtitle:
+      "Explore the world with our curated travel packages. Adventure awaits!",
+    imageUrl: "https://placehold.co/1920x1080.png",
+    imageAlt: "Ancient Egyptian temples",
   },
-  {
-    name: "Kristin Watson",
-    role: "Web Designer",
-    avatar: "https://placehold.co/100x100.png",
-    rating: 5,
-    text: "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+  whyChooseUs: {
+    pretitle: "Why Choose Us",
+    title: "Great Opportunity For<br/>Adventure & Travels",
+    feature1: {
+      title: "Safety First",
+      description:
+        "We prioritize your safety to ensure you have a worry-free and memorable experience.",
+    },
+    feature2: {
+      title: "Professional Guide",
+      description:
+        "Our guides are local experts who bring destinations to life with their passion and knowledge.",
+    },
+    feature3: {
+      title: "Exclusive Trip",
+      description:
+        "We offer unique itineraries and exclusive access to create once-in-a-lifetime journeys.",
+    },
   },
-  {
-    name: "Wade Warren",
-    role: "President Of Sales",
-    avatar: "https://placehold.co/100x100.png",
-    rating: 5,
-    text: "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+  discountBanners: {
+    banner1: {
+      title: "35% OFF",
+      description: "Explore The World tour Hotel Booking.",
+    },
+    banner2: {
+      title: "35% OFF",
+      description: "On Flight Ticket Grab This Now.",
+    },
   },
-  {
-    name: "Jane Doe",
-    role: "Adventurer",
-    avatar: "https://placehold.co/100x100.png",
-    rating: 5,
-    text: "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+  lastMinuteOffers: {
+    discount: "50%",
+    pretitle: "Deals & Offers",
+    title: "Incredible Last-Minute Offers",
   },
-];
+  testimonials: [
+    {
+      name: "Brooklyn Simmons",
+      role: "Brooklyn Simmons",
+      avatar: "https://placehold.co/100x100.png",
+      text:
+        "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+    },
+    {
+      name: "Kristin Watson",
+      role: "Web Designer",
+      avatar: "https://placehold.co/100x100.png",
+      text:
+        "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+    },
+    {
+      name: "Wade Warren",
+      role: "President Of Sales",
+      avatar: "https://placehold.co/100x100.png",
+      text:
+        "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+    },
+    {
+      name: "Jane Doe",
+      role: "Adventurer",
+      avatar: "https://placehold.co/100x100.png",
+      text:
+        "Praesent ut lacus a velit tincidunt aliquam a eget urna. Sed ullamcorper tristique nisl at pharetra turpis accumsan et etiam eu sollicitudin eros. In imperdiet accumsan.",
+    },
+  ],
+  videoSection: {
+    pretitle: "Watch Our Story",
+    title: "We Provide The Best Tour Facilities",
+  },
+  newsSection: {
+    pretitle: "News & Updates",
+    title: "Our Latest News & Articles",
+  },
+};
 
 const articles = [
   {
@@ -142,6 +194,10 @@ function LastMinuteOfferCard({ tour }: { tour: Tour }) {
 
 export default function Home() {
   const [tours, setTours] = React.useState<Tour[]>([]);
+  const [homeContent, setHomeContent] = React.useState<any>(defaultContent);
+  const [testimonials, setTestimonials] = React.useState<any[]>(
+    defaultContent.testimonials.map((t) => ({ ...t, rating: 5 })),
+  );
   const categories = [
     "Adventure",
     "Relaxation",
@@ -165,6 +221,31 @@ export default function Home() {
       setTours(fetchedTours);
     };
     fetchTours();
+  }, []);
+
+  React.useEffect(() => {
+    const loadHomeContent = async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("home_page_content")
+          .select("data")
+          .eq("id", 1)
+          .maybeSingle();
+        if (!error && data && (data as any).data) {
+          const content = (data as any).data;
+          setHomeContent({ ...defaultContent, ...content });
+          if (content?.testimonials && Array.isArray(content.testimonials)) {
+            setTestimonials(
+              content.testimonials.map((t: any) => ({ ...t, rating: 5 })),
+            );
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadHomeContent();
   }, []);
 
   const router = useRouter();
@@ -191,34 +272,32 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative h-[70vh] md:h-[60vh] min-h-[450px] flex items-center justify-center">
         <Image
-          src="https://placehold.co/1920x1080.png"
-          alt="Ancient Egyptian temples"
+          src={homeContent.hero.imageUrl || defaultContent.hero.imageUrl}
+          alt={homeContent.hero.imageAlt || defaultContent.hero.imageAlt}
           fill
           className="object-cover"
           priority
           data-ai-hint="Egypt travel"
         />
-        <div className="absolute inset-0 bg-black/50 z-10" />
+      <div className="absolute inset-0 z-10 bg-gradient-to-t from-primary/60 via-accent/40 to-transparent" />
         <div className="relative z-20 container mx-auto px-4 text-center text-white">
-          <h1 className="font-headline text-3xl sm:text-4xl md:text-6xl font-bold leading-tight mb-4">
-            Let's Make Your Best
-            <br />
-            Trip With Us
-          </h1>
+          <h1
+            className="font-headline text-3xl sm:text-4xl md:text-6xl font-bold leading-tight mb-4"
+            dangerouslySetInnerHTML={{ __html: homeContent.hero.title }}
+          />
           <p className="text-lg md:text-xl max-w-2xl mx-auto mb-8">
-            Explore the world with our curated travel packages. Adventure
-            awaits!
+            {homeContent.hero.subtitle}
           </p>
-          <div className="max-w-3xl mx-auto p-4 bg-white/20 backdrop-blur-sm border-0 rounded-lg">
+          <div className="max-w-3xl mx-auto p-4 bg-white/20 backdrop-blur-sm border rounded-lg ring-1 ring-primary/30">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <Input
                 placeholder="Search tour..."
-                className="bg-white text-foreground col-span-1 md:col-span-2"
+                className="bg-white text-foreground col-span-1 md:col-span-2 focus-visible:ring-2 focus-visible:ring-primary"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Select value={destination} onValueChange={setDestination}>
-                <SelectTrigger className="bg-white text-foreground">
+                <SelectTrigger className="bg-white text-foreground focus:ring-primary">
                   <SelectValue placeholder="Destination" />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,7 +309,7 @@ export default function Home() {
                 </SelectContent>
               </Select>
               <Select value={tourType} onValueChange={setTourType}>
-                <SelectTrigger className="bg-white text-foreground">
+                <SelectTrigger className="bg-white text-foreground focus:ring-primary">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -281,11 +360,15 @@ export default function Home() {
       <section className="container mx-auto px-4">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <p className="text-primary font-medium">Why Choose Us</p>
+            <p className="text-primary font-medium">
+              {homeContent.whyChooseUs.pretitle}
+            </p>
             <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground mt-2">
-              Great Opportunity For
-              <br />
-              Adventure & Travels
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: homeContent.whyChooseUs.title,
+                }}
+              />
             </h2>
             <div className="space-y-6 mt-8">
               <div className="flex items-start gap-4">
@@ -294,11 +377,10 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-foreground">
-                    Safety First
+                    {homeContent.whyChooseUs.feature1.title}
                   </h3>
                   <p className="text-muted-foreground mt-1">
-                    We prioritize your safety to ensure you have a worry-free
-                    and memorable experience.
+                    {homeContent.whyChooseUs.feature1.description}
                   </p>
                 </div>
               </div>
@@ -308,11 +390,10 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-foreground">
-                    Professional Guide
+                    {homeContent.whyChooseUs.feature2.title}
                   </h3>
                   <p className="text-muted-foreground mt-1">
-                    Our guides are local experts who bring destinations to life
-                    with their passion and knowledge.
+                    {homeContent.whyChooseUs.feature2.description}
                   </p>
                 </div>
               </div>
@@ -322,11 +403,10 @@ export default function Home() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-foreground">
-                    Exclusive Trip
+                    {homeContent.whyChooseUs.feature3.title}
                   </h3>
                   <p className="text-muted-foreground mt-1">
-                    We offer unique itineraries and exclusive access to create
-                    once-in-a-lifetime journeys.
+                    {homeContent.whyChooseUs.feature3.description}
                   </p>
                 </div>
               </div>
@@ -376,9 +456,11 @@ export default function Home() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-cyan-100 rounded-lg p-8 flex items-center justify-between overflow-hidden relative">
             <div>
-              <h3 className="text-3xl font-bold text-primary">35% OFF</h3>
+              <h3 className="text-3xl font-bold text-primary">
+                {homeContent.discountBanners.banner1.title}
+              </h3>
               <p className="text-lg text-primary/80">
-                Explore The World tour Hotel Booking.
+                {homeContent.discountBanners.banner1.description}
               </p>
               <Button className="mt-4">
                 Book Now <ArrowRight className="ml-2 h-4 w-4" />
@@ -396,9 +478,11 @@ export default function Home() {
           </div>
           <div className="bg-blue-900 text-white rounded-lg p-8 flex items-center justify-between overflow-hidden relative">
             <div>
-              <h3 className="text-3xl font-bold">35% OFF</h3>
+              <h3 className="text-3xl font-bold">
+                {homeContent.discountBanners.banner2.title}
+              </h3>
               <p className="text-lg text-blue-200">
-                On Flight Ticket Grab This Now.
+                {homeContent.discountBanners.banner2.description}
               </p>
               <Button variant="secondary" className="mt-4">
                 Book Now <ArrowRight className="ml-2 h-4 w-4" />
@@ -422,15 +506,18 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 bg-cyan-500 rounded-lg overflow-hidden text-white">
           <div className="bg-slate-800 p-8 lg:p-12 flex flex-col justify-center items-center text-center">
             <h2 className="text-6xl md:text-8xl font-bold font-headline">
-              50% <span className="text-5xl align-top">OFF</span>
+              {homeContent.lastMinuteOffers.discount}
+              <span className="text-5xl align-top"> OFF</span>
             </h2>
             <CountdownTimer />
           </div>
           <div className="lg:col-span-2 p-8 lg:p-12 relative">
             <Plane className="absolute top-4 right-4 text-white/20 h-16 w-16 -rotate-45" />
-            <p className="font-semibold text-white/80">Deals & Offers</p>
+            <p className="font-semibold text-white/80">
+              {homeContent.lastMinuteOffers.pretitle}
+            </p>
             <h2 className="font-headline text-3xl md:text-4xl font-bold text-white mt-2">
-              Incredible Last-Minute Offers
+              {homeContent.lastMinuteOffers.title}
             </h2>
             <div className="mt-8">
               <Carousel
@@ -540,9 +627,11 @@ export default function Home() {
           data-ai-hint="woman cliff lake"
         />
         <div className="container mx-auto px-4 relative z-20 text-center">
-          <p className="text-primary font-semibold">Watch Our Story</p>
+          <p className="text-primary font-semibold">
+            {homeContent.videoSection.pretitle}
+          </p>
           <h2 className="font-headline text-3xl md:text-5xl font-bold mt-2">
-            We Provide The Best Tour Facilities
+            {homeContent.videoSection.title}
           </h2>
           <div className="mt-8 flex justify-center items-center gap-6">
             <Button size="lg">
@@ -562,9 +651,11 @@ export default function Home() {
       {/* News & Articles Section */}
       <section className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <p className="text-primary font-medium">News & Updates</p>
+          <p className="text-primary font-medium">
+            {homeContent.newsSection.pretitle}
+          </p>
           <h2 className="font-headline text-3xl md:text-4xl font-bold text-foreground">
-            Our Latest News & Articles
+            {homeContent.newsSection.title}
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

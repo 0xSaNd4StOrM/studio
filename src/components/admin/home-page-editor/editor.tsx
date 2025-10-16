@@ -31,6 +31,8 @@ import {
 import { PlusCircle, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ImageUploader } from "@/components/admin/image-uploader";
+import Image from "next/image";
 
 // In a real app, this default data would come from a database or API
 const defaultHomePageData = {
@@ -38,6 +40,8 @@ const defaultHomePageData = {
     title: "Let's Make Your Best<br />Trip With Us",
     subtitle:
       "Explore the world with our curated travel packages. Adventure awaits!",
+    imageUrl: "https://placehold.co/1920x1080.png",
+    imageAlt: "Ancient Egyptian temples",
   },
   whyChooseUs: {
     pretitle: "Why Choose Us",
@@ -119,6 +123,8 @@ const formSchema = z.object({
   hero: z.object({
     title: z.string().min(1, "Hero title is required"),
     subtitle: z.string().min(1, "Hero subtitle is required"),
+    image: z.array(z.any()).optional(),
+    imageAlt: z.string().optional(),
   }),
   whyChooseUs: z.object({
     pretitle: z.string().min(1, "Pre-title is required"),
@@ -169,11 +175,26 @@ export function HomePageEditorForm() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("home_page_content")
-        .select("content")
-        .eq("id", "home-content-singleton")
+        .select("data")
+        .eq("id", 1)
         .maybeSingle();
-      if (!error && data && (data as any).content) {
-        form.reset((data as any).content);
+      if (!error && data && (data as any).data) {
+        const content = (data as any).data;
+        form.reset({
+          ...defaultHomePageData,
+          ...content,
+          hero: {
+            title: content?.hero?.title ?? defaultHomePageData.hero.title,
+            subtitle:
+              content?.hero?.subtitle ?? defaultHomePageData.hero.subtitle,
+            image: [],
+            imageAlt:
+              content?.hero?.imageAlt ?? defaultHomePageData.hero.imageAlt,
+          },
+        });
+        // Store existing hero image URL in a hidden field via form's values
+        // so we can show preview without forcing the user to re-upload
+        (form as any)._existingHeroUrl = content?.hero?.imageUrl || null;
       }
     }
     loadContent();
@@ -182,9 +203,44 @@ export function HomePageEditorForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const supabase = createClient();
+    // Handle hero image upload if provided
+    let heroUrl: string | null = (form as any)._existingHeroUrl || null;
+    try {
+      const heroFile = values.hero?.image && values.hero.image[0];
+      if (heroFile && heroFile instanceof File) {
+        const ext = heroFile.name.split(".").pop() || "png";
+        const path = `home/hero-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("cms")
+          .upload(path, heroFile, {
+            contentType: heroFile.type || "image/png",
+            upsert: true,
+          });
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from("cms")
+            .getPublicUrl(path);
+          heroUrl = publicUrlData.publicUrl;
+        }
+      }
+    } catch (_) {
+      // ignore upload failure
+    }
+
+    // Build content payload excluding transient file field
+    const { hero, ...rest } = values as any;
+    const contentToSave = {
+      ...rest,
+      hero: {
+        title: hero?.title ?? defaultHomePageData.hero.title,
+        subtitle: hero?.subtitle ?? defaultHomePageData.hero.subtitle,
+        imageUrl: heroUrl ?? defaultHomePageData.hero.imageUrl,
+        imageAlt: hero?.imageAlt ?? defaultHomePageData.hero.imageAlt,
+      },
+    };
     const payload = {
-      id: "home-content-singleton",
-      content: values,
+      id: 1,
+      data: contentToSave,
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase
@@ -259,6 +315,34 @@ export function HomePageEditorForm() {
             <AccordionContent>
               <Card className="border-0 shadow-none">
                 <CardContent className="pt-6 grid gap-6">
+                  {/* Preview existing hero image */}
+                  {((form as any)._existingHeroUrl || defaultHomePageData.hero.imageUrl) && (
+                    <div className="relative w-full h-40 rounded-md overflow-hidden border">
+                      <Image
+                        src={(form as any)._existingHeroUrl || defaultHomePageData.hero.imageUrl}
+                        alt={form.getValues("hero.imageAlt") || defaultHomePageData.hero.imageAlt}
+                        fill
+                        className="object-cover"
+                        sizes="100vw"
+                      />
+                    </div>
+                  )}
+                  <FormField
+                    control={form.control}
+                    name="hero.image"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hero Background Image</FormLabel>
+                        <FormControl>
+                          <ImageUploader
+                            value={field.value || []}
+                            onChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="hero.title"
@@ -280,6 +364,19 @@ export function HomePageEditorForm() {
                         <FormLabel>Subtitle</FormLabel>
                         <FormControl>
                           <Textarea {...field} rows={2} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="hero.imageAlt"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Hero Image Alt Text</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Ancient Egyptian temples" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

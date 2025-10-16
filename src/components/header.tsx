@@ -14,7 +14,7 @@ import {
   ChevronDown,
   Heart,
 } from "lucide-react";
-import { useCart } from "@/hooks/use-cart.tsx";
+import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -24,36 +24,75 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
 
-function TopBar() {
+type SettingsData = {
+  agencyName?: string;
+  phoneNumber?: string;
+  contactEmail?: string;
+  address?: string;
+  aboutUs?: string;
+  tagline?: string;
+  navLinks?: { label: string; href: string }[];
+  socialMedia?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+};
+
+function TopBar({
+  contactEmail,
+  phoneNumber,
+  address,
+  socialMedia,
+}: {
+  contactEmail?: string;
+  phoneNumber?: string;
+  address?: string;
+  socialMedia?: SettingsData["socialMedia"];
+}) {
   return (
-    <div className="bg-slate-100 text-slate-600 text-sm py-2 border-b">
+    <div className="bg-secondary text-secondary-foreground text-sm py-2 border-b">
       <div className="container flex justify-between items-center max-w-screen-2xl">
         <div className="flex items-center gap-6">
           <a
-            href="mailto:demo@example.com"
+            href={contactEmail ? `mailto:${contactEmail}` : "#"}
             className="flex items-center gap-2 hover:text-primary"
           >
             <Mail className="w-4 h-4" />
-            <span>demo@example.com</span>
+            <span>{contactEmail || "contact@example.com"}</span>
           </a>
           <div className="flex items-center gap-2">
             <Phone className="w-4 h-4" />
-            <span>+990 123 456 789</span>
+            <span>{phoneNumber || "+990 123 456 789"}</span>
           </div>
           <div className="hidden md:flex items-center gap-2">
             <MapPin className="w-4 h-4" />
-            <span>15/K, Dhaka London City, LOT</span>
+            <span>{address || "123 Main St, City"}</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <a href="#" className="hover:text-primary">
+          <a
+            href={socialMedia?.twitter || "#"}
+            className="hover:text-primary"
+            aria-label="Twitter"
+          >
             <Twitter className="w-4 h-4" />
           </a>
-          <a href="#" className="hover:text-primary">
+          <a
+            href={socialMedia?.facebook || "#"}
+            className="hover:text-primary"
+            aria-label="Facebook"
+          >
             <Facebook className="w-4 h-4" />
           </a>
-          <a href="#" className="hover:text-primary">
+          <a
+            href={socialMedia?.instagram || "#"}
+            className="hover:text-primary"
+            aria-label="Instagram"
+          >
             <Instagram className="w-4 h-4" />
           </a>
         </div>
@@ -67,6 +106,7 @@ export function Header() {
   const { wishlistItems } = useWishlist();
   const [isClient, setIsClient] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [settings, setSettings] = useState<{ data: SettingsData; logo_url?: string | null } | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -77,6 +117,28 @@ export function Header() {
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("settings")
+          .select("data, logo_url")
+          .eq("id", 1)
+          .maybeSingle();
+        if (!error && data) {
+          setSettings({
+            data: ((data as any).data || {}) as SettingsData,
+            logo_url: (data as any).logo_url || null,
+          });
+        }
+      } catch (_) {
+        // ignore
+      }
+    };
+    loadSettings();
   }, []);
 
   const itemCount = isClient ? cartItems.length : 0;
@@ -97,82 +159,47 @@ export function Header() {
 
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300`}>
-      <TopBar />
-      <div className={`transition-all duration-300 ${headerClasses}`}>
+      <TopBar
+        contactEmail={settings?.data?.contactEmail}
+        phoneNumber={settings?.data?.phoneNumber}
+        address={settings?.data?.address}
+        socialMedia={settings?.data?.socialMedia}
+      />
+      {/* Egyptian accent bar */}
+      <div className="h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+      <div className={`transition-all duration-300 ${headerClasses}`}> 
         <div className="container flex h-20 max-w-screen-2xl items-center justify-between px-4">
           <Link
             href="/"
             className="flex items-center gap-2 transition-opacity hover:opacity-80"
           >
-            <Logo />
+            <Logo logoUrl={settings?.logo_url ?? undefined} alt={settings?.data?.agencyName || "Agency Logo"} />
             <div>
               <span className="font-headline text-2xl font-bold text-foreground">
-                Turmet
+                {settings?.data?.agencyName || "Turmet"}
               </span>
-              <p className="text-xs text-muted-foreground">Explore The World</p>
+              <p className="text-xs text-muted-foreground">{settings?.data?.tagline || "Explore The World"}</p>
             </div>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-8">
-            <Link
-              href="/"
-              className="font-medium text-foreground transition-colors hover:text-primary"
-            >
-              Home
-            </Link>
-            <Link
-              href="#"
-              className="font-medium text-foreground transition-colors hover:text-primary"
-            >
-              About Us
-            </Link>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center font-medium text-foreground transition-colors hover:text-primary focus:outline-none">
-                Destination
-                <ChevronDown className="relative top-[1px] ml-1 h-3 w-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {egyptianDestinations.map((destination) => (
-                  <DropdownMenuItem key={destination} asChild>
-                    {/* In a real app, this would link to a filtered page e.g. /tours?destination=Cairo */}
-                    <Link href="/#tours">{destination}</Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center font-medium text-foreground transition-colors hover:text-primary focus:outline-none">
-                Tour
-                <ChevronDown className="relative top-[1px] ml-1 h-3 w-3" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem asChild>
-                  <Link href="/#tours">Package tours</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>Daily tours</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Link
-              href="#"
-              className="font-medium text-foreground transition-colors hover:text-primary"
-            >
-              Services
-            </Link>
-            <Link
-              href="#"
-              className="font-medium text-foreground transition-colors hover:text-primary"
-            >
-              Blog
-            </Link>
-            <Link
-              href="#"
-              className="font-medium text-foreground transition-colors hover:text-primary"
-            >
-              Contact
-            </Link>
+            {settings?.data?.navLinks && settings.data.navLinks.length > 0 ? (
+              settings.data.navLinks.map((l) => (
+                <Link key={`${l.label}-${l.href}`} href={l.href} className="font-medium text-foreground transition-colors hover:text-primary">
+                  {l.label}
+                </Link>
+              ))
+            ) : (
+              <>
+                <Link href="/" className="font-medium text-foreground transition-colors hover:text-primary">Home</Link>
+                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
+                <Link href="/#tours" className="font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
+                <Link href="/#tours" className="font-medium text-foreground transition-colors hover:text-primary">Tour</Link>
+                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">Services</Link>
+                <Link href="/blog" className="font-medium text-foreground transition-colors hover:text-primary">Blog</Link>
+                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">Contact</Link>
+              </>
+            )}
           </nav>
 
           <div className="flex items-center gap-2">

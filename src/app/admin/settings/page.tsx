@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,15 @@ const formSchema = z
     contactEmail: z.string().email("Invalid email address."),
     address: z.string().min(1, "Address is required."),
     logo: z.array(z.any()).optional(),
+    tagline: z.string().optional(),
+    navLinks: z
+      .array(
+        z.object({
+          label: z.string().min(1, "Label is required"),
+          href: z.string().min(1, "Href is required"),
+        }),
+      )
+      .optional(),
     aboutUs: z
       .string()
       .min(10, "About us description should be at least 10 characters."),
@@ -74,6 +83,16 @@ export default function SettingsPage() {
       contactEmail: "contact@wanderlusthub.com",
       address: "123 Adventure Lane, Travel City, 98765",
       logo: [],
+      tagline: "Explore The World",
+      navLinks: [
+        { label: "Home", href: "/" },
+        { label: "About Us", href: "/#about" },
+        { label: "Destination", href: "/#tours" },
+        { label: "Tour", href: "/#tours" },
+        { label: "Services", href: "/#services" },
+        { label: "Blog", href: "/blog" },
+        { label: "Contact", href: "/#contact" },
+      ],
       aboutUs:
         "Wanderlust Hub is your premier partner for unforgettable journeys in Egypt. We are dedicated to providing curated travel experiences that blend adventure, culture, and relaxation.",
       socialMedia: {
@@ -88,26 +107,40 @@ export default function SettingsPage() {
     },
   });
 
+  const { fields: navLinkFields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "navLinks",
+  });
+
   useEffect(() => {
     async function loadSettings() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("settings")
-        .select(
-          "agency_name, phone_number, contact_email, address, about_us, social_media, logo_url",
-        )
-        .eq("id", "settings-singleton")
+        .select("data, logo_url")
+        .eq("id", 1)
         .maybeSingle();
       if (!error && data) {
+        const settingsData = (data as any).data ?? {};
         setExistingLogoUrl((data as any).logo_url ?? null);
         form.reset({
-          agencyName: (data as any).agency_name ?? "",
-          phoneNumber: (data as any).phone_number ?? "",
-          contactEmail: (data as any).contact_email ?? "",
-          address: (data as any).address ?? "",
+          agencyName: settingsData.agencyName ?? "",
+          phoneNumber: settingsData.phoneNumber ?? "",
+          contactEmail: settingsData.contactEmail ?? "",
+          address: settingsData.address ?? "",
           logo: [],
-          aboutUs: (data as any).about_us ?? "",
-          socialMedia: (data as any).social_media ?? {
+          tagline: settingsData.tagline ?? "Explore The World",
+          navLinks: settingsData.navLinks ?? [
+            { label: "Home", href: "/" },
+            { label: "About Us", href: "/#about" },
+            { label: "Destination", href: "/#tours" },
+            { label: "Tour", href: "/#tours" },
+            { label: "Services", href: "/#services" },
+            { label: "Blog", href: "/blog" },
+            { label: "Contact", href: "/#contact" },
+          ],
+          aboutUs: settingsData.aboutUs ?? "",
+          socialMedia: settingsData.socialMedia ?? {
             facebook: "",
             twitter: "",
             instagram: "",
@@ -151,20 +184,24 @@ export default function SettingsPage() {
     }
 
     const payload = {
-      id: "settings-singleton",
-      agency_name: values.agencyName,
-      phone_number: values.phoneNumber,
-      contact_email: values.contactEmail,
-      address: values.address,
-      about_us: values.aboutUs,
-      social_media: values.socialMedia,
+      id: 1,
+      data: {
+        agencyName: values.agencyName,
+        phoneNumber: values.phoneNumber,
+        contactEmail: values.contactEmail,
+        address: values.address,
+        tagline: values.tagline ?? "",
+        navLinks: values.navLinks ?? [],
+        aboutUs: values.aboutUs,
+        socialMedia: values.socialMedia,
+      },
       logo_url: logoUrl,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("settings")
-      .upsert(payload, { onConflict: "id" });
+    const { error } = await supabase.from("settings").upsert(payload, {
+      onConflict: "id",
+    });
     if (error) {
       alert(`Failed to save settings: ${error.message}`);
       return;
@@ -238,6 +275,22 @@ export default function SettingsPage() {
               </div>
               <FormField
                 control={form.control}
+                name="tagline"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tagline</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Explore The World" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Short phrase under the logo in the header/footer.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="logo"
                 render={({ field }) => (
                   <FormItem>
@@ -256,6 +309,59 @@ export default function SettingsPage() {
                 )}
               />
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Navigation</CardTitle>
+              <CardDescription>
+                Configure the primary navigation links shown in the header and footer.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {navLinkFields && navLinkFields.length > 0 ? (
+                navLinkFields.map((field, index) => (
+                  <div key={field.id} className="grid md:grid-cols-3 gap-4 items-end">
+                    <FormField
+                      control={form.control}
+                      name={`navLinks.${index}.label` as const}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel>Label</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Home" {...f} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`navLinks.${index}.href` as const}
+                      render={({ field: f }) => (
+                        <FormItem>
+                          <FormLabel>Href</FormLabel>
+                          <FormControl>
+                            <Input placeholder="/" {...f} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="button" variant="destructive" onClick={() => remove(index)}>
+                      Remove
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No links. Add some below.</p>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button type="button" onClick={() => append({ label: "New Link", href: "/" })}>
+                Add Link
+              </Button>
+            </CardFooter>
           </Card>
 
           <Card>
