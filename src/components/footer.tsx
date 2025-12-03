@@ -55,8 +55,8 @@ export function Footer() {
 
   return (
     <footer className="bg-[#181E29] text-gray-300">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+      <div className="container mx-auto px-4 py-10 md:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
           {/* Column 1: Logo, Newsletter, Socials */}
           <div className="space-y-6">
             <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">

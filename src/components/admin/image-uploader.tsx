@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,26 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ value, onChange }: ImageUploaderProps) {
-  const [previews, setPreviews] = useState<string[]>(
-    value
-      ? value.map((file) =>
-          typeof file === "string" ? file : URL.createObjectURL(file),
-        )
-      : [],
-  );
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (value && value.length > 0) {
+      const newPreviews = value.map((file) =>
+        typeof file === "string" ? file : URL.createObjectURL(file)
+      );
+      setPreviews(newPreviews);
+
+      return () => {
+        newPreviews.forEach((preview) => {
+          if (preview.startsWith("blob:")) {
+            URL.revokeObjectURL(preview);
+          }
+        });
+      };
+    } else {
+      setPreviews([]);
+    }
+  }, [value]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -108,4 +121,3 @@ export function ImageUploader({ value, onChange }: ImageUploaderProps) {
     </div>
   );
 }
-

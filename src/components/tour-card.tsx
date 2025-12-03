@@ -75,16 +75,17 @@ export function TourCard({ tour }: TourCardProps) {
           </div>
         </div>
 
-        <h3 className="font-headline text-lg font-semibold h-12">
+        <h3 className="font-headline text-lg font-semibold h-12 overflow-hidden">
           <Link
             href={`/tours/${tour.slug}`}
-            className="hover:text-primary transition-colors"
+            className="hover:text-primary transition-colors line-clamp-2"
+            title={tour.name}
           >
             {tour.name}
           </Link>
         </h3>
 
-        <div className="border-t pt-3 mt-auto flex justify-between items-center">
+        <div className="border-t pt-3 mt-auto flex flex-wrap gap-2 justify-between items-center">
           <p className="text-sm">
             <span className="text-muted-foreground">From </span>
             <span className="font-bold text-lg text-primary">

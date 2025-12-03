@@ -2,6 +2,8 @@
 
 import { HomePageEditorForm } from "@/components/admin/home-page-editor/editor";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePageEditor() {
   return (
     <div className="space-y-6">
