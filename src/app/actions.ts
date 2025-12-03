@@ -2,6 +2,8 @@
 
 import { suggestAlternativeTours } from "@/ai/flows/suggest-alternative-tours";
 import { generateBlogPost } from "@/ai/flows/generate-blog-post";
+import { generateTourFlow } from "@/ai/flows/generateTour";
+import { TourInputSchema, TourOutput } from "@/types/tour-schemas";
 import { z } from "zod";
 
 // For AI Suggestions in Cart
@@ -65,7 +67,7 @@ type BlogPostState = {
 
 export async function generateBlogPostAction(
   prevState: BlogPostState,
-  formData: FormData,
+  formData: FormData
 ): Promise<BlogPostState> {
   try {
     const rawInput = {
@@ -94,6 +96,36 @@ export async function generateBlogPostAction(
     return {
       message: "An unexpected error occurred. Please try again.",
       content: "",
+    };
+  }
+}
+
+// For Tailor Made Tour
+export type TourGenerationState = {
+  success: boolean;
+  data?: TourOutput;
+  message?: string;
+};
+
+export async function generateTailorMadeTourAction(
+  input: z.infer<typeof TourInputSchema>
+): Promise<TourGenerationState> {
+  try {
+    // Validate input
+    const validatedInput = TourInputSchema.parse(input);
+
+    // Call Genkit Flow
+    const result = await generateTourFlow(validatedInput);
+
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error("Error generating tour:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to generate tour",
     };
   }
 }

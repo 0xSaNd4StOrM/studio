@@ -26,7 +26,6 @@ import {
   Star,
   PlayCircle,
   Calendar,
-  MapPin as MapPinIcon,
 } from "lucide-react";
 import {
   ExclusiveTripIcon,
@@ -71,10 +70,6 @@ const staggerContainer: Variants = {
       delayChildren: 0.2,
     },
   },
-};
-
-const hoverScale: Variants = {
-  hover: { scale: 1.05, transition: { duration: 0.3 } },
 };
 
 const categoryIcons = {
@@ -351,6 +346,18 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                 </Button>
               </div>
             </div>
+          </motion.div>
+
+          <motion.div variants={fadeInUp} className="mt-8">
+             <p className="text-white/90 mb-3 text-lg font-medium drop-shadow-md">Want a personalized experience?</p>
+             <Button 
+               size="lg" 
+               variant="secondary" 
+               className="h-14 px-8 text-lg font-bold rounded-full shadow-xl hover:scale-105 transition-transform bg-white text-primary hover:bg-gray-100 border-2 border-white/20"
+               onClick={() => router.push('/tailor-made')}
+             >
+               ✨ Tailor Made Your Tour with AI
+             </Button>
           </motion.div>
         </div>
       </motion.section>
@@ -679,7 +686,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                             ))}
                           </div>
                           <p className="text-muted-foreground mb-8 flex-grow italic text-lg leading-relaxed">
-                            "{testimonial.content}"
+                            {testimonial.content}
                           </p>
                           <div className="flex items-center gap-4 mt-auto pt-6 border-t border-border/30">
                             <Avatar className="h-12 w-12 border-2 border-primary/20">

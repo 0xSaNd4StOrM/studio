@@ -12,12 +12,12 @@ type LogoProps = {
 export function Logo({ logoUrl, alt = "Agency Logo" }: LogoProps) {
   if (logoUrl) {
     return (
-      <div className="relative h-12 w-12 overflow-hidden rounded-full ring-1 ring-border">
+      <div className="relative h-[60px] w-[60px] overflow-hidden rounded-lg">
         <Image
           src={logoUrl}
           alt={alt}
           fill
-          sizes="48px"
+          sizes="60px"
           className="object-cover"
         />
       </div>
@@ -25,7 +25,7 @@ export function Logo({ logoUrl, alt = "Agency Logo" }: LogoProps) {
   }
 
   return (
-    <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-full h-12 w-12">
+    <div className="flex items-center justify-center bg-primary text-primary-foreground rounded-lg h-[50px] w-[50px]">
       <Plane className="h-6 w-6" />
     </div>
   );
