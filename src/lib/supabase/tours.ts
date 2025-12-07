@@ -151,6 +151,21 @@ export async function addTour(
   redirect("/admin/tours");
 }
 
+export async function deleteTour(id: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("tours").delete().eq("id", id);
+
+  if (error) {
+    console.error("Error deleting tour:", error);
+    throw new Error("Failed to delete tour.");
+  }
+
+  revalidatePath("/admin/tours");
+  revalidatePath("/");
+  revalidatePath("/tours");
+}
+
 export async function updateTour(id: string, formData: Omit<Tour, "id">) {
   const supabase = await createClient();
 

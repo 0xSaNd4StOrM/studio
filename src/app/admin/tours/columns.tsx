@@ -16,6 +16,70 @@ import {
 import { MoreHorizontal, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { deleteTour } from "@/lib/supabase/tours";
+import { useTransition } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+const TourActions = ({ tour }: { tour: Tour }) => {
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+
+  const handleDelete = () => {
+    if (confirm("Are you sure you want to delete this tour? This action cannot be undone.")) {
+      startTransition(async () => {
+        try {
+          await deleteTour(tour.id);
+          toast({
+            title: "Tour deleted",
+            description: "The tour has been successfully deleted.",
+          });
+        } catch (error) {
+          console.error("Failed to delete tour:", error);
+          toast({
+            title: "Error",
+            description: "Failed to delete tour.",
+            variant: "destructive",
+          });
+        }
+      });
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0">
+          <span className="sr-only">Open menu</span>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/tours/${tour.slug}/edit`}>Edit Tour</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/tours/${tour.slug}`} target="_blank">
+            View on Site
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => navigator.clipboard.writeText(tour.slug)}
+        >
+          Copy Slug
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={handleDelete}
+          disabled={isPending}
+          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+        >
+          {isPending ? "Deleting..." : "Delete Tour"}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export const columns: ColumnDef<Tour>[] = [
   {
@@ -127,37 +191,7 @@ export const columns: ColumnDef<Tour>[] = [
     id: "actions",
     cell: ({ row }) => {
       const tour = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-              <Link href={`/admin/tours/${tour.slug}/edit`}>Edit Tour</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/tours/${tour.slug}`} target="_blank">
-                View on Site
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(tour.slug)}
-            >
-              Copy Slug
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10">
-              Delete Tour
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
+      return <TourActions tour={tour} />;
     },
   },
 ];
