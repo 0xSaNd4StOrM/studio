@@ -17,7 +17,10 @@ export function TourCard({ tour }: TourCardProps) {
   const isFavorited = isInWishlist(tour.id);
 
   // Display the starting price from the first tier (for a single person)
-  const startingPrice = tour.priceTiers[0]?.pricePerAdult;
+  // Fallback to the first package's first tier if root priceTiers is empty
+  const startingPrice =
+    tour.priceTiers?.[0]?.pricePerAdult ??
+    tour.packages?.[0]?.priceTiers?.[0]?.pricePerAdult;
 
   const handleFavoriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -70,7 +73,9 @@ export function TourCard({ tour }: TourCardProps) {
           <div className="flex-grow text-right">
             <div className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
               <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-              <span className="font-bold">{tour.rating.toFixed(1)}</span>
+              <span className="font-bold">
+                {tour.rating != null ? tour.rating.toFixed(1) : "New"}
+              </span>
             </div>
           </div>
         </div>
@@ -89,9 +94,11 @@ export function TourCard({ tour }: TourCardProps) {
           <p className="text-sm">
             <span className="text-muted-foreground">From </span>
             <span className="font-bold text-lg text-primary">
-              ${startingPrice.toFixed(2)}
+              {startingPrice != null ? `$${startingPrice.toFixed(2)}` : "Contact us"}
             </span>
-            <span className="text-muted-foreground">/person</span>
+            {startingPrice != null && (
+              <span className="text-muted-foreground">/person</span>
+            )}
           </p>
           <Button
             variant="ghost"

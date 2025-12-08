@@ -31,7 +31,6 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
 const formSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
   phoneNumber: z
@@ -210,12 +209,23 @@ export default function CheckoutPage() {
                 const tour = item.product as Tour;
                 productImage = tour.images?.[0] || "";
                 productDescription = `${item.adults ?? 0} Adults, ${item.children ?? 0} Children`;
+                if (item.packageName) {
+                  productDescription += ` • ${item.packageName}`;
+                }
                 if (item.date) {
                   productDescription += `, ${format(new Date(item.date), "PPP")}`;
                 }
                 const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
                 
-                const priceTiers = tour.priceTiers || [];
+                let priceTiers = tour.priceTiers || [];
+                
+                if (item.packageId && tour.packages) {
+                  const selectedPackage = tour.packages.find(p => p.id === item.packageId);
+                  if (selectedPackage) {
+                    priceTiers = selectedPackage.priceTiers;
+                  }
+                }
+
                 const priceTier =
                   priceTiers.find(
                     (tier) =>

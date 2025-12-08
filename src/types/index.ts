@@ -5,6 +5,13 @@ export type PriceTier = {
   pricePerChild: number;
 };
 
+export type TourPackage = {
+  id: string;
+  name: string; // e.g., "Standard", "Luxury"
+  description?: string; // e.g., "Includes entry fees and lunch"
+  priceTiers: PriceTier[];
+};
+
 export type Tour = {
   id: string;
   slug: string;
@@ -17,7 +24,8 @@ export type Tour = {
   availability: boolean;
   images: string[];
   rating: number;
-  priceTiers: PriceTier[];
+  priceTiers: PriceTier[]; // Keeping for backward compatibility or default
+  packages?: TourPackage[]; // New field for multi-package support
   price?: never; // Ensure old price field is not used
 
   // Detailed tour information
@@ -48,6 +56,8 @@ export type BookingItem = {
   bookingId: string;
   tourId?: string; // Now optional
   upsellItemId?: string; // New: link to upsell item
+  packageId?: string; // New: selected package ID
+  packageName?: string; // New: selected package name
   adults: number;
   children: number;
   price: number;
@@ -67,6 +77,8 @@ export type BookingItem = {
 export type CartItem = {
   product: Tour | UpsellItem;
   productType: "tour" | "upsell";
+  packageId?: string; // New: selected package ID
+  packageName?: string; // New: selected package name
   adults?: number; // Only for tours
   children?: number; // Only for tours
   date?: Date; // Only for tours

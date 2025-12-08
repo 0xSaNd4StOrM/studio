@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
@@ -68,6 +68,13 @@ const tourCategories = [
   { value: "Daily", label: "Daily" },
 ];
 
+const packageSchema = z.object({
+  id: z.string().optional(), // For internal tracking if needed, or just generate one
+  name: z.string().min(1, "Package name is required"),
+  description: z.string().optional(),
+  priceTiers: z.array(priceTierSchema).min(1, "At least one price tier is required."),
+});
+
 export const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   slug: z
@@ -90,9 +97,8 @@ export const formSchema = z.object({
   images: z.array(z.any()).min(1, "At least one image is required."),
   availability: z.boolean().default(true),
   rating: z.coerce.number().min(1).max(5),
-  priceTiers: z
-    .array(priceTierSchema)
-    .min(1, "At least one price tier is required."),
+  priceTiers: z.array(priceTierSchema).optional(), // Make optional as packages are preferred
+  packages: z.array(packageSchema).optional(), // New packages field
 
   durationText: z.string().optional(),
   tourType: z.string().optional(),
@@ -111,6 +117,176 @@ interface TourFormProps {
   formType: "new" | "edit";
 }
 
+
+
+// Sub-component for individual package editing
+function PackageEditor({
+  index,
+  remove,
+}: {
+  index: number;
+  remove: (index: number) => void;
+}) {
+  const { control } = useFormContext<z.infer<typeof formSchema>>();
+  
+  const {
+    fields: priceTierFields,
+    append: appendPriceTier,
+    remove: removePriceTier,
+  } = useFieldArray({
+    control,
+    name: `packages.${index}.priceTiers`,
+  });
+
+  return (
+    <Card className="border-l-4 border-l-primary/20">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1 flex-1">
+            <FormField
+              control={control}
+              name={`packages.${index}.name`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      placeholder="Package Name (e.g., Standard, Luxury)"
+                      className="font-bold text-lg"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`packages.${index}.description`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      placeholder="Description (e.g., Includes entry fees...)"
+                      className="text-sm text-muted-foreground"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 -mt-2 -mr-2"
+            onClick={() => remove(index)}
+          >
+            <Trash2 className="h-5 w-5" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 bg-muted/20 p-4 pt-2 rounded-b-lg">
+        <div className="text-sm font-semibold mb-2">Price Tiers</div>
+        {priceTierFields.map((field, tierIndex) => (
+          <div
+            key={field.id}
+            className="grid grid-cols-4 gap-4 items-end p-3 bg-background border rounded-md relative"
+          >
+            <FormField
+              control={control}
+              name={`packages.${index}.priceTiers.${tierIndex}.minPeople`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Min People</FormLabel>
+                  <FormControl>
+                    <Input type="number" className="h-8" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`packages.${index}.priceTiers.${tierIndex}.maxPeople`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Max People</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="unlimited"
+                      className="h-8"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`packages.${index}.priceTiers.${tierIndex}.pricePerAdult`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Adult Price</FormLabel>
+                  <FormControl>
+                    <Input type="number" className="h-8" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`packages.${index}.priceTiers.${tierIndex}.pricePerChild`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Child Price</FormLabel>
+                  <FormControl>
+                    <Input type="number" className="h-8" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {priceTierFields.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => removePriceTier(tierIndex)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full border-dashed"
+          onClick={() =>
+            appendPriceTier({
+              minPeople: 1,
+              maxPeople: null,
+              pricePerAdult: 100,
+              pricePerChild: 50,
+            })
+          }
+        >
+          <PlusCircle className="mr-2 h-3 w-3" />
+          Add Price Tier
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TourForm({ initialData, onSubmit, formType }: TourFormProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -127,6 +303,8 @@ export function TourForm({ initialData, onSubmit, formType }: TourFormProps) {
             { value: "" },
           ],
           images: initialData.images || [], // Pass existing image URLs
+          packages: initialData.packages || [],
+          priceTiers: initialData.priceTiers || [],
         }
       : {
           name: "",
@@ -137,14 +315,8 @@ export function TourForm({ initialData, onSubmit, formType }: TourFormProps) {
           images: [],
           availability: true,
           rating: 4.5,
-          priceTiers: [
-            {
-              minPeople: 1,
-              maxPeople: 5,
-              pricePerAdult: 100,
-              pricePerChild: 50,
-            },
-          ],
+          priceTiers: [],
+          packages: [],
           itinerary: [{ day: 1, activity: "" }],
           highlights: [{ value: "" }],
           includes: [{ value: "" }],
@@ -159,12 +331,12 @@ export function TourForm({ initialData, onSubmit, formType }: TourFormProps) {
   });
 
   const {
-    fields: priceTierFields,
-    append: appendPriceTier,
-    remove: removePriceTier,
+    fields: packageFields,
+    append: appendPackage,
+    remove: removePackage,
   } = useFieldArray({
     control: form.control,
-    name: "priceTiers",
+    name: "packages",
   });
 
   const {
@@ -462,105 +634,42 @@ export function TourForm({ initialData, onSubmit, formType }: TourFormProps) {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Pricing Tiers</CardTitle>
+                  <CardTitle>Packages & Pricing</CardTitle>
                   <CardDescription>
-                    Define different prices based on group size.
+                    Create different packages (e.g. Standard, Luxury) with their own pricing tiers.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {priceTierFields.map((field, index) => (
-                    <div
+                <CardContent className="space-y-6">
+                  {packageFields.map((field, index) => (
+                    <PackageEditor
                       key={field.id}
-                      className="grid grid-cols-4 gap-4 items-end p-4 border rounded-md relative"
-                    >
-                      <FormField
-                        control={form.control}
-                        name={`priceTiers.${index}.minPeople`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Min People</FormLabel>
-                            <FormControl>
-                              <Input type="number" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`priceTiers.${index}.maxPeople`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Max People</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="e.g., 10"
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              Leave empty for no max.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`priceTiers.${index}.pricePerAdult`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Adult Price</FormLabel>
-                            <FormControl>
-                              <Input type="number" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`priceTiers.${index}.pricePerChild`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Child Price</FormLabel>
-                            <FormControl>
-                              <Input type="number" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {priceTierFields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-3 -right-3 h-7 w-7"
-                          onClick={() => removePriceTier(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                      index={index}
+                      remove={removePackage}
+                    />
                   ))}
+                  
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
+                    className="w-full"
                     onClick={() =>
-                      appendPriceTier({
-                        minPeople: 6,
-                        maxPeople: null,
-                        pricePerAdult: 80,
-                        pricePerChild: 40,
+                      appendPackage({
+                        id: crypto.randomUUID(),
+                        name: "",
+                        description: "",
+                        priceTiers: [
+                          {
+                            minPeople: 1,
+                            maxPeople: null,
+                            pricePerAdult: 100,
+                            pricePerChild: 50,
+                          },
+                        ],
                       })
                     }
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Price Tier
+                    Add Package
                   </Button>
                 </CardContent>
               </Card>

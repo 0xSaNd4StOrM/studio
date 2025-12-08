@@ -19,6 +19,7 @@ function ensureTourDefaults(tour: Tour): Tour {
     type: tour.type || [],
     itinerary: tour.itinerary || [],
     priceTiers: tour.priceTiers || [],
+    packages: tour.packages || [],
     highlights: tour.highlights || [],
     includes: tour.includes || [],
     excludes: tour.excludes || [],
@@ -78,7 +79,6 @@ export async function getTourBySlug(slug: string): Promise<Tour | null> {
     return null;
   }
 
-  console.log(`Tour data for slug ${slug}:`, data);
   return ensureTourDefaults(toCamelCase(data) as Tour);
 }
 
@@ -118,6 +118,7 @@ export async function addTour(
   // 2. Prepare data for database (snake_case)
   const {
     priceTiers,
+    packages,
     durationText,
     tourType,
     availabilityDescription,
@@ -129,6 +130,7 @@ export async function addTour(
     ...rest,
     images: imageUrls.length > 0 ? imageUrls : rest.images, // Use new URLs or keep old ones if no new files were uploaded
     price_tiers: priceTiers,
+    packages: packages?.map((p) => ({ ...p, id: p.id || crypto.randomUUID() })) || [],
     duration_text: durationText,
     tour_type: tourType,
     availability_description: availabilityDescription,
@@ -204,6 +206,7 @@ export async function updateTour(id: string, formData: Omit<Tour, "id">) {
   // 2. Prepare data for database (snake_case)
   const {
     priceTiers,
+    packages,
     durationText,
     tourType,
     availabilityDescription,
@@ -215,6 +218,7 @@ export async function updateTour(id: string, formData: Omit<Tour, "id">) {
     ...rest,
     images: imageUrls.length > 0 ? imageUrls : rest.images, // Use new URLs or keep old ones if no new files were uploaded
     price_tiers: priceTiers,
+    packages: packages?.map((p) => ({ ...p, id: p.id || crypto.randomUUID() })) || [],
     duration_text: durationText,
     tour_type: tourType,
     availability_description: availabilityDescription,

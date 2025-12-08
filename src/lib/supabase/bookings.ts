@@ -113,16 +113,32 @@ export async function createBooking(data: CreateBookingData) {
       const tour = item.product as Tour;
       tourId = tour.id;
       const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
+      
+      let priceTiers = tour.priceTiers;
+      
+      // If a package is selected, use its price tiers
+      if (item.packageId && tour.packages) {
+        const selectedPackage = tour.packages.find(p => p.id === item.packageId);
+        if (selectedPackage) {
+          priceTiers = selectedPackage.priceTiers;
+        }
+      }
+
+      // Fallback to default tiers if no package tiers found (safety check)
+      priceTiers = priceTiers || [];
+
       const priceTier =
-        tour.priceTiers.find(
+        priceTiers.find(
           (tier: PriceTier) =>
             totalPeople >= tier.minPeople &&
             (tier.maxPeople === null || totalPeople <= tier.maxPeople),
-        ) || tour.priceTiers[tour.priceTiers.length - 1];
+        ) || priceTiers[priceTiers.length - 1];
 
-      itemPrice =
-        (item.adults ?? 0) * priceTier.pricePerAdult +
-        (item.children ?? 0) * priceTier.pricePerChild;
+      if (priceTier) {
+        itemPrice =
+          (item.adults ?? 0) * priceTier.pricePerAdult +
+          (item.children ?? 0) * priceTier.pricePerChild;
+      }
     } else if (item.productType === "upsell") {
       const upsellItem = item.product as UpsellItem;
       upsellItemId = upsellItem.id;
@@ -133,6 +149,8 @@ export async function createBooking(data: CreateBookingData) {
       booking_id: bookingId,
       tour_id: tourId || null,
       upsell_item_id: upsellItemId || null,
+      package_id: item.packageId || null,
+      package_name: item.packageName || null,
       adults: item.adults ?? 0,
       children: item.children ?? 0,
       item_date: item.date || null,

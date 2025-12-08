@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface TourDetailsClientProps {
   tour: Tour;
@@ -45,19 +46,30 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   const [date, setDate] = useState<Date | undefined>(undefined);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | undefined>(
+    tour.packages && tour.packages.length > 0 ? tour.packages[0].id : undefined
+  );
 
   const totalPeople = useMemo(() => adults + children, [adults, children]);
 
+  const currentPackage = useMemo(() => {
+    if (!tour.packages || tour.packages.length === 0) return null;
+    return tour.packages.find((p) => p.id === selectedPackageId) || tour.packages[0];
+  }, [tour.packages, selectedPackageId]);
+
   const currentPriceTier = useMemo(() => {
     if (!tour) return null;
+    // Use package tiers if available, otherwise tour tiers
+    const tiers = currentPackage ? currentPackage.priceTiers : tour.priceTiers;
+    
     return (
-      tour.priceTiers.find(
+      tiers.find(
         (tier) =>
           totalPeople >= tier.minPeople &&
           (tier.maxPeople === null || totalPeople <= tier.maxPeople),
-      ) || tour.priceTiers[tour.priceTiers.length - 1]
+      ) || tiers[tiers.length - 1]
     );
-  }, [tour, totalPeople]);
+  }, [tour, totalPeople, currentPackage]);
 
   const totalPrice = useMemo(() => {
     if (!currentPriceTier) return 0;
@@ -68,7 +80,16 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
 
   const handleBooking = () => {
     if (tour && date) {
-      addToCart(tour, "tour", adults, children, date);
+      addToCart(
+        tour, 
+        "tour", 
+        adults, 
+        children, 
+        date, 
+        1, 
+        selectedPackageId, 
+        currentPackage?.name
+      );
     }
   };
 
@@ -293,6 +314,11 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-2xl md:text-3xl">Pricing</CardTitle>
+              {currentPackage && (
+                <p className="text-sm text-muted-foreground">
+                  Showing prices for: <span className="font-semibold">{currentPackage.name}</span>
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               <table className="w-full text-sm">
@@ -304,7 +330,7 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {tour.priceTiers.map((tier, index) => (
+                  {(currentPackage ? currentPackage.priceTiers : tour.priceTiers).map((tier, index) => (
                     <tr
                       key={index}
                       className={`border-b ${tier.minPeople === currentPriceTier?.minPeople ? "bg-primary/10" : ""}`}
@@ -336,6 +362,38 @@ export function TourDetailsClient({ tour }: TourDetailsClientProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {tour.packages && tour.packages.length > 0 && (
+                <div>
+                  <Label className="font-semibold mb-2 block">Select Package</Label>
+                  <RadioGroup
+                    value={selectedPackageId}
+                    onValueChange={setSelectedPackageId}
+                    className="grid gap-2"
+                  >
+                    {tour.packages.map((pkg) => (
+                      <div key={pkg.id}>
+                        <RadioGroupItem
+                          value={pkg.id}
+                          id={pkg.id}
+                          className="peer sr-only"
+                        />
+                        <Label
+                          htmlFor={pkg.id}
+                          className="flex flex-col items-start justify-between rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-all"
+                        >
+                          <div className="font-semibold text-sm">{pkg.name}</div>
+                          {pkg.description && (
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                              {pkg.description}
+                            </div>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              )}
+
               <div>
                 <Label className="font-semibold mb-2 block">Select Date</Label>
                 <Calendar

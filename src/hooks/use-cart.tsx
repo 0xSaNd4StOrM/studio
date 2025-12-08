@@ -20,8 +20,14 @@ interface CartContextType {
     children?: number,
     date?: Date,
     quantity?: number,
+    packageId?: string,
+    packageName?: string,
   ) => void;
-  removeFromCart: (productId: string, productType: "tour" | "upsell") => void;
+  removeFromCart: (
+    productId: string,
+    productType: "tour" | "upsell",
+    packageId?: string,
+  ) => void;
   clearCart: () => void;
   getCartTotal: () => number;
 }
@@ -59,27 +65,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       children?: number,
       date?: Date,
       quantity?: number,
+      packageId?: string,
+      packageName?: string,
     ) => {
       let toastMessage: { title: string; description: string } | null = null;
       setCartItems((prevItems) => {
         const existingItem = prevItems.find(
           (item) =>
-            item.product.id === product.id && item.productType === productType,
+            item.product.id === product.id && 
+            item.productType === productType &&
+            // If packages are used, treat different packages as different items
+            (packageId ? item.packageId === packageId : true),
         );
         if (existingItem) {
           toastMessage = {
             title: "Already in Cart",
-            description: `${product.name} is already in your cart.`,
+            description: `${product.name} ${packageName ? `(${packageName})` : ""} is already in your cart.`,
           };
           return prevItems;
         }
         toastMessage = {
           title: "Added to Cart",
-          description: `${product.name} has been added to your cart.`,
+          description: `${product.name} ${packageName ? `(${packageName})` : ""} has been added to your cart.`,
         };
         return [
           ...prevItems,
-          { product, productType, adults, children, date, quantity },
+          { product, productType, adults, children, date, quantity, packageId, packageName },
         ];
       });
       if (toastMessage) {
@@ -90,12 +101,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const removeFromCart = useCallback(
-    (productId: string, productType: "tour" | "upsell") => {
+    (productId: string, productType: "tour" | "upsell", packageId?: string) => {
       let productName: string | undefined;
       setCartItems((prevItems) => {
         const itemToRemove = prevItems.find(
           (item) =>
-            item.product.id === productId && item.productType === productType,
+            item.product.id === productId && 
+            item.productType === productType &&
+            (packageId ? item.packageId === packageId : true),
         );
         if (itemToRemove) {
           productName = itemToRemove.product.name;
@@ -103,7 +116,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return prevItems.filter(
           (item) =>
             !(
-              item.product.id === productId && item.productType === productType
+              item.product.id === productId && 
+              item.productType === productType &&
+              (packageId ? item.packageId === packageId : true)
             ),
         );
       });
@@ -127,12 +142,23 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       if (item.productType === "tour") {
         const tour = item.product as Tour;
         const totalPeople = (item.adults ?? 0) + (item.children ?? 0);
+        
+        // Find specific package if selected
+        const selectedPackage = item.packageId && tour.packages 
+          ? tour.packages.find(p => p.id === item.packageId)
+          : null;
+          
+        // Use package tiers if available, otherwise fallback to tour tiers
+        const tiers = selectedPackage ? selectedPackage.priceTiers : tour.priceTiers;
+
+        if (!tiers || tiers.length === 0) return total;
+
         const priceTier =
-          tour.priceTiers.find(
+          tiers.find(
             (tier) =>
               totalPeople >= tier.minPeople &&
               (tier.maxPeople === null || totalPeople <= tier.maxPeople),
-          ) || tour.priceTiers[tour.priceTiers.length - 1];
+          ) || tiers[tiers.length - 1];
 
         const itemTotal =
           (item.adults ?? 0) * priceTier.pricePerAdult +

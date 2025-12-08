@@ -107,7 +107,14 @@ export default function CartPage() {
                   />
                 )}
                 <div className="ml-4 flex-grow">
-                  <h2 className="font-bold text-lg">{item.product.name}</h2>
+                  <h2 className="font-bold text-lg">
+                    {item.product.name}
+                    {item.packageName && (
+                      <span className="text-muted-foreground font-normal ml-2 text-base">
+                        ({item.packageName})
+                      </span>
+                    )}
+                  </h2>
                   {item.productType === "tour" && (
                     <p className="text-sm text-muted-foreground">
                       {(item.product as Tour).destination}
@@ -115,23 +122,52 @@ export default function CartPage() {
                   )}
                   <p className="font-bold text-primary mt-2">
                     $
-                    {item.productType === "tour"
-                      ? (
-                          item.product as Tour
-                        ).priceTiers[0].pricePerAdult.toLocaleString()
-                      : (item.product as UpsellItem).price.toLocaleString()}
+                    {(() => {
+                      if (item.productType === "upsell") {
+                        return (
+                          (item.product as UpsellItem).price *
+                          (item.quantity || 1)
+                        ).toLocaleString();
+                      }
+                      const tour = item.product as Tour;
+                      const pkg =
+                        item.packageId && tour.packages
+                          ? tour.packages.find((p) => p.id === item.packageId)
+                          : null;
+                      const tiers = pkg ? pkg.priceTiers : tour.priceTiers;
+                      const totalPeople =
+                        (item.adults || 0) + (item.children || 0);
+                      const tier =
+                        tiers.find(
+                          (t) =>
+                            totalPeople >= t.minPeople &&
+                            (t.maxPeople === null ||
+                              totalPeople <= t.maxPeople),
+                        ) || tiers[tiers.length - 1];
+                      return (
+                        (item.adults || 0) * tier.pricePerAdult +
+                        (item.children || 0) * tier.pricePerChild
+                      ).toLocaleString();
+                    })()}
                   </p>
                   {item.productType === "tour" && item.date && (
-                    <p className="text-sm text-muted-foreground">
-                      Date: {format(new Date(item.date), "PPP")}
-                    </p>
+                    <div className="text-sm text-muted-foreground">
+                      <p>Date: {format(new Date(item.date), "PPP")}</p>
+                      <p>
+                        Guests: {item.adults} Adults, {item.children} Children
+                      </p>
+                    </div>
                   )}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() =>
-                    removeFromCart(item.product.id, item.productType)
+                    removeFromCart(
+                      item.product.id,
+                      item.productType,
+                      item.packageId,
+                    )
                   }
                 >
                   <Trash2 className="h-5 w-5 text-destructive" />
