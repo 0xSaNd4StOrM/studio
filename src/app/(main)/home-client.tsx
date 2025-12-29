@@ -3,7 +3,14 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { Tour, Post } from "@/types";
+import type {
+  BrowseCategoryIconKey,
+  BrowseCategoryItem,
+  HomeContent,
+  Post,
+  Testimonial,
+  Tour,
+} from "@/types";
 import {
   Select,
   SelectContent,
@@ -71,16 +78,26 @@ const staggerContainer: Variants = {
   },
 };
 
-const categoryIcons = {
-  Adventure: <Mountain className="h-8 w-8 text-primary" />,
-  Relaxation: <Sailboat className="h-8 w-8 text-primary" />,
-  Cultural: <Building2 className="h-8 w-8 text-primary" />,
-  Culinary: <Utensils className="h-8 w-8 text-primary" />,
-  Family: <FerrisWheel className="h-8 w-8 text-primary" />,
-  Honeymoon: <Plane className="h-8 w-8 text-primary" />,
+const browseCategoryIcons: Record<BrowseCategoryIconKey, React.ReactNode> = {
+  mountain: <Mountain className="h-8 w-8 text-primary" />,
+  sailboat: <Sailboat className="h-8 w-8 text-primary" />,
+  building2: <Building2 className="h-8 w-8 text-primary" />,
+  utensils: <Utensils className="h-8 w-8 text-primary" />,
+  ferrisWheel: <FerrisWheel className="h-8 w-8 text-primary" />,
+  plane: <Plane className="h-8 w-8 text-primary" />,
 };
 
-const categories = Object.keys(categoryIcons);
+const defaultBrowseCategories: BrowseCategoryItem[] = [
+  { label: "Adventure", type: "adventure", icon: "mountain" },
+  { label: "Relaxation", type: "relaxation", icon: "sailboat" },
+  { label: "Cultural", type: "cultural", icon: "building2" },
+  { label: "Culinary", type: "culinary", icon: "utensils" },
+  { label: "Family", type: "family", icon: "ferrisWheel" },
+  { label: "Honeymoon", type: "honeymoon", icon: "plane" },
+];
+
+const defaultWhyChooseUsImageUrl =
+  "https://images.unsplash.com/photo-1699115823831-cf1329dfc58f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhZHZlbnR1cmUlMjB0cmF2ZWx8ZW58MHx8fHwxNzUyNjIyOTA5fDA&ixlib=rb-4.1.0&q=80&w=1080";
 
 const egyptianDestinations = [
   "Cairo",
@@ -92,8 +109,27 @@ const egyptianDestinations = [
   "Giza",
 ];
 
+function isBrowseCategoryIconKey(value: unknown): value is BrowseCategoryIconKey {
+  return typeof value === "string" && value in browseCategoryIcons;
+}
+
+function normalizeBrowseCategoryItem(value: unknown): BrowseCategoryItem | null {
+  if (typeof value !== "object" || value === null) return null;
+  const obj = value as Record<string, unknown>;
+
+  const label = typeof obj.label === "string" ? obj.label : null;
+  const type = typeof obj.type === "string" ? obj.type : null;
+  if (!label || !type) return null;
+
+  const icon = isBrowseCategoryIconKey(obj.icon) ? obj.icon : "mountain";
+  return { label, type, icon };
+}
+
 function LastMinuteOfferCard({ tour }: { tour: Tour }) {
   if (!tour || !tour.images || tour.images.length === 0) return null;
+  const startingPrice =
+    tour.priceTiers?.[0]?.pricePerAdult ??
+    tour.packages?.[0]?.priceTiers?.[0]?.pricePerAdult;
   return (
     <Link
       href={`/tours/${tour.slug}`}
@@ -105,6 +141,7 @@ function LastMinuteOfferCard({ tour }: { tour: Tour }) {
           alt={tour.name}
           fill
           className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-110"
+          sizes="(max-width: 768px) 100vw, 50vw"
           data-ai-hint={`${tour.destination} travel`}
         />
       </div>
@@ -114,110 +151,12 @@ function LastMinuteOfferCard({ tour }: { tour: Tour }) {
       </div>
       <div className="absolute bottom-0 left-0 p-4 w-full">
         <h3 className="font-bold text-xl mb-1 font-headline">{tour.destination}</h3>
-        <p className="text-sm font-medium opacity-90">${tour.priceTiers[0]?.pricePerAdult}</p>
+        <p className="text-sm font-medium opacity-90">
+          {startingPrice != null ? `$${startingPrice}` : "Contact us"}
+        </p>
       </div>
     </Link>
   );
-}
-
-interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  content: string;
-  avatar: string;
-  rating?: number;
-}
-
-interface HeroSection {
-  imageUrl: string;
-  imageAlt: string;
-  title: string;
-  subtitle: string;
-}
-
-interface Feature {
-  title: string;
-  description: string;
-}
-
-interface BrowseCategorySection {
-  title: string;
-  subtitle: string;
-}
-
-interface WhyChooseUsSection {
-  pretitle: string;
-  title: string;
-  feature1: Feature;
-  feature2: Feature;
-  feature3: Feature;
-}
-
-interface PopularDestinationsSection {
-  pretitle: string;
-  title: string;
-  count?: number;
-}
-
-interface DiscountBanner {
-  title: string;
-  description: string;
-  imageUrl?: string;
-  buttonText?: string;
-  buttonLink?: string;
-}
-
-interface DiscountBannersSection {
-  banner1: DiscountBanner;
-  banner2: DiscountBanner;
-}
-
-interface LastMinuteOffersSection {
-  discount: string;
-  pretitle: string;
-  title: string;
-  count?: number;
-}
-
-interface VideoSection {
-  pretitle: string;
-  title: string;
-  backgroundImageUrl?: string;
-  button1Text?: string;
-  button1Link?: string;
-  button2Text?: string;
-  button2Link?: string;
-}
-
-interface NewsSection {
-  pretitle: string;
-  title: string;
-  count?: number;
-}
-
-interface HomeContent {
-  testimonials?: Testimonial[];
-  testimonialCount?: number;
-  hero: HeroSection;
-  browseCategory?: BrowseCategorySection;
-  whyChooseUs: WhyChooseUsSection;
-  popularDestinations?: PopularDestinationsSection;
-  discountBanners: DiscountBannersSection;
-  lastMinuteOffers: LastMinuteOffersSection;
-  videoSection: VideoSection;
-  newsSection: NewsSection;
-  visibility?: {
-    hero?: boolean;
-    browseCategory?: boolean;
-    whyChooseUs?: boolean;
-    popularDestinations?: boolean;
-    discountBanners?: boolean;
-    lastMinuteOffers?: boolean;
-    testimonials?: boolean;
-    videoSection?: boolean;
-    newsSection?: boolean;
-  };
 }
 
 interface HomePageClientProps {
@@ -234,7 +173,11 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
     if (homeContent?.testimonials && Array.isArray(homeContent.testimonials)) {
       const count = homeContent.testimonialCount || 6;
       setTestimonials(
-        homeContent.testimonials.slice(0, count).map((t) => ({ ...t, rating: 5 })),
+        homeContent.testimonials.slice(0, count).map((t) => ({
+          ...t,
+          content: t.content ?? t.text ?? "",
+          rating: 5,
+        })),
       );
     }
   }, [homeContent]);
@@ -253,6 +196,14 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
   };
   
   if (!homeContent) return null;
+  const browseCategoriesFromContent = homeContent.browseCategory?.categories;
+  const browseCategories =
+    Array.isArray(browseCategoriesFromContent) &&
+    browseCategoriesFromContent.length > 0
+      ? browseCategoriesFromContent
+          .map((category) => normalizeBrowseCategoryItem(category))
+          .filter((v): v is BrowseCategoryItem => v != null)
+      : defaultBrowseCategories;
 
   return (
       <div className="space-y-16 md:space-y-32 overflow-hidden">
@@ -269,6 +220,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
             alt={homeContent.hero.imageAlt}
             fill
             className="object-cover"
+            sizes="100vw"
             priority
             data-ai-hint="Egypt travel"
           />
@@ -293,7 +245,11 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
             >
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4">
                 <div className="md:col-span-4">
+                  <label htmlFor="home-search-q" className="sr-only">
+                    Search tour
+                  </label>
                   <Input
+                    id="home-search-q"
                     placeholder="Search tour..."
                     className="bg-white/90 border-0 h-10 md:h-12 text-foreground focus-visible:ring-2 focus-visible:ring-primary text-sm md:text-base"
                     value={searchQuery}
@@ -301,13 +257,17 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                   />
                 </div>
                 <div className="md:col-span-3">
+                  <label className="sr-only">Destination</label>
                   <Select value={destination} onValueChange={setDestination}>
-                    <SelectTrigger className="bg-white/90 border-0 h-10 md:h-12 text-foreground focus:ring-primary text-sm md:text-base">
+                    <SelectTrigger
+                      className="bg-white/90 border-0 h-10 md:h-12 text-foreground focus:ring-primary text-sm md:text-base"
+                      aria-label="Destination"
+                    >
                       <SelectValue placeholder="Destination" />
                     </SelectTrigger>
                     <SelectContent>
                       {egyptianDestinations.map((dest) => (
-                        <SelectItem key={dest} value={dest.toLowerCase()}>
+                        <SelectItem key={dest} value={dest}>
                           {dest}
                         </SelectItem>
                       ))}
@@ -315,8 +275,12 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                   </Select>
                 </div>
                 <div className="md:col-span-3">
+                  <label className="sr-only">Type</label>
                   <Select value={tourType} onValueChange={setTourType}>
-                    <SelectTrigger className="bg-white/90 border-0 h-10 md:h-12 text-foreground focus:ring-primary text-sm md:text-base">
+                    <SelectTrigger
+                      className="bg-white/90 border-0 h-10 md:h-12 text-foreground focus:ring-primary text-sm md:text-base"
+                      aria-label="Tour type"
+                    >
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -372,23 +336,27 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
               variants={staggerContainer}
               className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-8"
             >
-              {categories.map((category) => (
+              {browseCategories.map((category, index) => (
                 <motion.div
-                  key={category}
+                  key={`${category.type}-${index}`}
                   variants={fadeInUp}
                   whileHover={{ y: -5 }}
-                  className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center group cursor-pointer"
+                  className="flex"
                 >
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-300 group-hover:bg-primary group-hover:shadow-lg group-hover:scale-110 group-hover:[&>svg]:text-white">
-                    {/* Adjust icon size via CSS or cloneElement if needed, but usually they scale with container or are fixed size. The svg inside is likely keeping its size. */}
-                    {/* Assuming icons are sized properly or we can wrap them */}
-                    <div className="scale-75 md:scale-100">
-                      {categoryIcons[category as keyof typeof categoryIcons]}
+                  <Link
+                    href={`/tours?type=${encodeURIComponent(category.type)}`}
+                    className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center group w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg py-2"
+                    aria-label={`Browse ${category.label} tours`}
+                  >
+                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-300 group-hover:bg-primary group-hover:shadow-lg group-hover:scale-110 group-hover:[&>svg]:text-white">
+                      <div className="scale-75 md:scale-100">
+                        {browseCategoryIcons[category.icon]}
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-sm md:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {category}
-                  </span>
+                    <span className="text-sm md:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {category.label}
+                    </span>
+                  </Link>
                 </motion.div>
               ))}
             </motion.div>
@@ -449,11 +417,12 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
               className="relative h-full min-h-[300px] md:min-h-[500px] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl order-1 md:order-2"
             >
               <Image
-                src="https://images.unsplash.com/photo-1699115823831-cf1329dfc58f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhZHZlbnR1cmUlMjB0cmF2ZWx8ZW58MHx8fHwxNzUyNjIyOTA5fDA&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Adventure travel"
+                src={homeContent.whyChooseUs.imageUrl || defaultWhyChooseUsImageUrl}
+                alt={homeContent.whyChooseUs.imageAlt || "Adventure travel"}
                 fill
                 style={{ objectFit: 'cover' }}
                 className="hover:scale-105 transition-transform duration-700"
+                sizes="(max-width: 768px) 100vw, 50vw"
                 data-ai-hint="adventure travel"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
@@ -463,8 +432,12 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                 transition={{ delay: 0.5 }}
                 className="absolute -bottom-6 -right-6 md:-bottom-8 md:-right-8 bg-primary text-primary-foreground p-6 md:p-8 rounded-tl-3xl shadow-2xl w-48 md:w-64 text-center z-10"
               >
-                <p className="text-3xl md:text-5xl font-bold font-headline mb-1">25+</p>
-                <p className="text-sm md:text-base font-medium opacity-90">Years Of Experience</p>
+                <p className="text-3xl md:text-5xl font-bold font-headline mb-1">
+                  {homeContent.whyChooseUs.badgeValue || "25+"}
+                </p>
+                <p className="text-sm md:text-base font-medium opacity-90">
+                  {homeContent.whyChooseUs.badgeLabel || "Years Of Experience"}
+                </p>
               </motion.div>
             </motion.div>
           </motion.div>
@@ -550,6 +523,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                   alt={homeContent.discountBanners.banner1.title}
                   fill
                   style={{ objectFit: 'contain' }}
+                  sizes="(max-width: 768px) 160px, 256px"
                 />
               </div>
             </motion.div>
@@ -580,6 +554,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                   alt={homeContent.discountBanners.banner2.title}
                   fill
                   style={{ objectFit: 'contain' }}
+                  sizes="(max-width: 768px) 160px, 256px"
                 />
               </div>
             </motion.div>
@@ -754,6 +729,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
             fill
             style={{ objectFit: 'cover' }}
             className="object-cover"
+            sizes="100vw"
             data-ai-hint="video section background"
           />
         </motion.div>
@@ -841,6 +817,7 @@ export default function HomePageClient({ initialTours, homeContent, articles = [
                         fill
                         style={{ objectFit: 'cover' }}
                         className="transition-transform duration-700 group-hover:scale-110"
+                        sizes="(max-width: 768px) 100vw, 33vw"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </div>

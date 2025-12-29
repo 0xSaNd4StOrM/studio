@@ -126,3 +126,138 @@ export type Post = {
   tags: string[];
 };
 
+export const browseCategoryIconKeys = [
+  "mountain",
+  "sailboat",
+  "building2",
+  "utensils",
+  "ferrisWheel",
+  "plane",
+] as const;
+
+export type BrowseCategoryIconKey = (typeof browseCategoryIconKeys)[number];
+
+export type BrowseCategoryItem = {
+  label: string;
+  type: string;
+  icon: BrowseCategoryIconKey;
+};
+
+export type Testimonial = {
+  id: string;
+  name: string;
+  role: string;
+  content?: string;
+  text?: string;
+  avatar: string;
+  rating?: number;
+};
+
+export type HeroSection = {
+  imageUrl: string;
+  imageAlt: string;
+  title: string;
+  subtitle: string;
+};
+
+export type Feature = {
+  title: string;
+  description: string;
+};
+
+export type BrowseCategorySection = {
+  title: string;
+  subtitle: string;
+  categories?: BrowseCategoryItem[];
+};
+
+export type WhyChooseUsSection = {
+  pretitle: string;
+  title: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  badgeValue?: string;
+  badgeLabel?: string;
+  feature1: Feature;
+  feature2: Feature;
+  feature3: Feature;
+};
+
+export type PopularDestinationsSection = {
+  pretitle: string;
+  title: string;
+  count?: number;
+};
+
+export type DiscountBanner = {
+  title: string;
+  description: string;
+  imageUrl?: string;
+  buttonText?: string;
+  buttonLink?: string;
+};
+
+export type DiscountBannersSection = {
+  banner1: DiscountBanner;
+  banner2: DiscountBanner;
+};
+
+export type LastMinuteOffersSection = {
+  discount: string;
+  pretitle: string;
+  title: string;
+  count?: number;
+};
+
+export type VideoSection = {
+  pretitle: string;
+  title: string;
+  backgroundImageUrl?: string;
+  button1Text?: string;
+  button1Link?: string;
+  button2Text?: string;
+  button2Link?: string;
+};
+
+export type NewsSection = {
+  pretitle: string;
+  title: string;
+  count?: number;
+};
+
+export type HomeContent = {
+  testimonials?: Testimonial[];
+  testimonialCount?: number;
+  hero: HeroSection;
+  browseCategory?: BrowseCategorySection;
+  whyChooseUs: WhyChooseUsSection;
+  popularDestinations?: PopularDestinationsSection;
+  discountBanners: DiscountBannersSection;
+  lastMinuteOffers: LastMinuteOffersSection;
+  videoSection: VideoSection;
+  newsSection: NewsSection;
+  visibility?: {
+    hero?: boolean;
+    browseCategory?: boolean;
+    whyChooseUs?: boolean;
+    popularDestinations?: boolean;
+    discountBanners?: boolean;
+    lastMinuteOffers?: boolean;
+    testimonials?: boolean;
+    videoSection?: boolean;
+    newsSection?: boolean;
+  };
+};
+
+export type ContactMessageStatus = "new" | "read" | "archived";
+
+export type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  subject?: string | null;
+  message: string;
+  status: ContactMessageStatus;
+  createdAt: string;
+};

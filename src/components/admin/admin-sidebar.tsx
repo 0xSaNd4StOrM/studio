@@ -23,6 +23,7 @@ import {
   Newspaper,
   LayoutDashboard,
   Tag,
+  Mail,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,6 +50,7 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   { href: "/admin/upsell-items", label: "Upsell Items", icon: Tag },
+  { href: "/admin/contact-messages", label: "Contact Messages", icon: Mail },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -59,6 +61,7 @@ const getPageTitle = (pathname: string) => {
   if (pathname.startsWith("/admin/customers")) return "Customers";
   if (pathname.startsWith("/admin/blog")) return "Blog";
   if (pathname.startsWith("/admin/home-page-editor")) return "Home Page Editor";
+  if (pathname.startsWith("/admin/contact-messages")) return "Contact Messages";
   if (pathname.startsWith("/admin/settings")) return "Settings";
   return "Admin";
 };
@@ -136,4 +139,4 @@ export function AdminSidebar({
     </SidebarProvider>
   );
 }
-
+

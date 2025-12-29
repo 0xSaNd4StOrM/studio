@@ -2,9 +2,45 @@ import React from "react";
 import { getTours } from "@/lib/supabase/tours";
 import { createClient } from "@/lib/supabase/server";
 import HomePageClient from "./home-client";
-import type { Post } from "@/types";
+import { browseCategoryIconKeys } from "@/types";
+import type { BrowseCategoryItem, HomeContent, Post } from "@/types";
 
-const defaultContent = {
+const defaultBrowseCategories: BrowseCategoryItem[] = [
+  { label: "Adventure", type: "adventure", icon: "mountain" },
+  { label: "Relaxation", type: "relaxation", icon: "sailboat" },
+  { label: "Cultural", type: "cultural", icon: "building2" },
+  { label: "Culinary", type: "culinary", icon: "utensils" },
+  { label: "Family", type: "family", icon: "ferrisWheel" },
+  { label: "Honeymoon", type: "honeymoon", icon: "plane" },
+];
+
+const browseCategoryIconKeySet = new Set<string>(browseCategoryIconKeys);
+
+function normalizeBrowseCategoryItem(value: unknown): BrowseCategoryItem | null {
+  if (typeof value !== "object" || value === null) return null;
+  const obj = value as Record<string, unknown>;
+
+  const label = typeof obj.label === "string" ? obj.label : null;
+  const type = typeof obj.type === "string" ? obj.type : null;
+  if (!label || !type) return null;
+
+  const icon =
+    typeof obj.icon === "string" && browseCategoryIconKeySet.has(obj.icon)
+      ? (obj.icon as BrowseCategoryItem["icon"])
+      : "mountain";
+
+  return { label, type, icon };
+}
+
+function normalizeBrowseCategories(value: unknown): BrowseCategoryItem[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const normalized = value
+    .map((v) => normalizeBrowseCategoryItem(v))
+    .filter((v): v is BrowseCategoryItem => v != null);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+const defaultContent: HomeContent = {
   hero: {
     title: "Let's Make Your Best<br />Trip With Us",
     subtitle:
@@ -15,6 +51,11 @@ const defaultContent = {
   whyChooseUs: {
     pretitle: "Why Choose Us",
     title: "Great Opportunity For<br/>Adventure & Travels",
+    imageUrl:
+      "https://images.unsplash.com/photo-1699115823831-cf1329dfc58f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxhZHZlbnR1cmUlMjB0cmF2ZWx8ZW58MHx8fHwxNzUyNjIyOTA5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+    imageAlt: "Adventure travel",
+    badgeValue: "25+",
+    badgeLabel: "Years Of Experience",
     feature1: {
       title: "Safety First",
       description:
@@ -34,6 +75,7 @@ const defaultContent = {
   browseCategory: {
     title: "Browse By Destination Category",
     subtitle: "Select a category to see our exclusive tour packages",
+    categories: defaultBrowseCategories,
   },
   popularDestinations: {
     pretitle: "Top Destinations",
@@ -110,9 +152,6 @@ const defaultContent = {
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Fetch tours from Supabase
-  const initialTours = await getTours();
-
   // Fetch home page content from Supabase
   const { data: homePageData } = await supabase
     .from("home_page_content")
@@ -133,10 +172,89 @@ export default async function HomePage() {
 
   const articles = (postsData as unknown as Post[]) || [];
 
-  // Merge fetched content with default content to ensure all fields exist
-  const homeContent = homePageData?.data 
-    ? { ...defaultContent, ...homePageData.data }
+  const dbContent = (homePageData?.data ?? {}) as Partial<typeof defaultContent>;
+
+  const homeContent: HomeContent = homePageData?.data
+    ? {
+        ...defaultContent,
+        ...dbContent,
+        hero: { ...defaultContent.hero, ...(dbContent.hero || {}) },
+        whyChooseUs: {
+          ...defaultContent.whyChooseUs,
+          ...(dbContent.whyChooseUs || {}),
+          feature1: {
+            ...defaultContent.whyChooseUs.feature1,
+            ...(dbContent.whyChooseUs?.feature1 || {}),
+          },
+          feature2: {
+            ...defaultContent.whyChooseUs.feature2,
+            ...(dbContent.whyChooseUs?.feature2 || {}),
+          },
+          feature3: {
+            ...defaultContent.whyChooseUs.feature3,
+            ...(dbContent.whyChooseUs?.feature3 || {}),
+          },
+        },
+        browseCategory: {
+          ...defaultContent.browseCategory!,
+          ...(dbContent.browseCategory || {}),
+          title:
+            typeof dbContent.browseCategory?.title === "string" &&
+            dbContent.browseCategory.title.trim().length > 0
+              ? dbContent.browseCategory.title
+              : defaultContent.browseCategory!.title,
+          subtitle:
+            typeof dbContent.browseCategory?.subtitle === "string" &&
+            dbContent.browseCategory.subtitle.trim().length > 0
+              ? dbContent.browseCategory.subtitle
+              : defaultContent.browseCategory!.subtitle,
+          categories:
+            normalizeBrowseCategories(dbContent.browseCategory?.categories) ??
+            defaultContent.browseCategory!.categories,
+        },
+        popularDestinations: {
+          ...defaultContent.popularDestinations!,
+          ...(dbContent.popularDestinations || {}),
+        },
+        discountBanners: {
+          ...defaultContent.discountBanners,
+          ...(dbContent.discountBanners || {}),
+          banner1: {
+            ...defaultContent.discountBanners.banner1,
+            ...(dbContent.discountBanners?.banner1 || {}),
+          },
+          banner2: {
+            ...defaultContent.discountBanners.banner2,
+            ...(dbContent.discountBanners?.banner2 || {}),
+          },
+        },
+        lastMinuteOffers: {
+          ...defaultContent.lastMinuteOffers,
+          ...(dbContent.lastMinuteOffers || {}),
+        },
+        videoSection: {
+          ...defaultContent.videoSection,
+          ...(dbContent.videoSection || {}),
+        },
+        newsSection: {
+          ...defaultContent.newsSection,
+          ...(dbContent.newsSection || {}),
+        },
+        visibility: {
+          ...defaultContent.visibility,
+          ...(dbContent.visibility || {}),
+        },
+      }
     : defaultContent;
+
+  const popularCount =
+    homeContent.popularDestinations?.count ??
+    defaultContent.popularDestinations?.count ??
+    0;
+  const offersCount = homeContent.lastMinuteOffers?.count ?? defaultContent.lastMinuteOffers.count;
+  const toursLimit = Math.max(popularCount || 0, offersCount || 0);
+
+  const initialTours = await getTours({ limit: toursLimit > 0 ? toursLimit : undefined });
 
   return (
     <HomePageClient 

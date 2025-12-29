@@ -24,6 +24,27 @@ type SettingsData = {
   };
 };
 
+function normalizeNavHref(href: string | undefined | null) {
+  const raw = String(href || "").trim();
+  if (!raw) return "/";
+
+  const lower = raw.toLowerCase();
+  const withoutTrailingSlash =
+    raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw;
+
+  if (lower === "/#about" || lower === "#about" || lower === "about")
+    return "/about";
+  if (lower === "/#services" || lower === "#services" || lower === "services")
+    return "/services";
+  if (lower === "/#contact" || lower === "#contact" || lower === "contact")
+    return "/contact";
+  if (lower === "/#tours" || lower === "#tours" || lower === "tours")
+    return "/tours";
+
+  if (withoutTrailingSlash.startsWith("#")) return `/${withoutTrailingSlash}`;
+  return withoutTrailingSlash;
+}
+
 export function Footer() {
   const [settings, setSettings] = React.useState<{ data: SettingsData; logo_url?: string | null } | null>(null);
 
@@ -97,16 +118,16 @@ export function Footer() {
               {settings?.data?.navLinks && settings.data.navLinks.length > 0 ? (
                 settings.data.navLinks.slice(0, 6).map((l) => (
                   <li key={`${l.label}-${l.href}`}>
-                    <Link href={l.href} className="hover:text-primary transition-colors">{l.label}</Link>
+                    <Link href={normalizeNavHref(l.href)} className="hover:text-primary transition-colors">{l.label}</Link>
                   </li>
                 ))
               ) : (
                 <>
                   <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
-                  <li><Link href="#" className="hover:text-primary transition-colors">About Us</Link></li>
+                  <li><Link href="/about" className="hover:text-primary transition-colors">About Us</Link></li>
                   <li><Link href="/blog" className="hover:text-primary transition-colors">Blog</Link></li>
-                  <li><Link href="/#services" className="hover:text-primary transition-colors">Services</Link></li>
-                  <li><Link href="/#tours" className="hover:text-primary transition-colors">Tour</Link></li>
+                  <li><Link href="/services" className="hover:text-primary transition-colors">Services</Link></li>
+                  <li><Link href="/tours" className="hover:text-primary transition-colors">Tour</Link></li>
                 </>
               )}
             </ul>
@@ -117,19 +138,19 @@ export function Footer() {
             <h3 className="font-headline font-semibold text-white mb-6 relative after:content-[''] after:absolute after:left-0 after:-bottom-2 after:w-10 after:h-0.5 after:bg-primary">Services</h3>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="hover:text-primary transition-colors">Wanderlust Adventures</a>
+                <Link href="/services" className="hover:text-primary transition-colors">Car Rental</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary transition-colors">Globe Trotters Travel</a>
+                <Link href="/services" className="hover:text-primary transition-colors">SIM Cards</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary transition-colors">Odyssey Travel Services</a>
+                <Link href="/services" className="hover:text-primary transition-colors">Airport Pickup</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary transition-colors">Jet Set Journeys</a>
+                <Link href="/services" className="hover:text-primary transition-colors">Private Guide</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary transition-colors">Dream Destinations Travel</a>
+                <Link href="/services" className="hover:text-primary transition-colors">Hotel Booking</Link>
               </li>
             </ul>
           </div>

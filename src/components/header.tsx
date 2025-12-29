@@ -39,6 +39,33 @@ type SettingsData = {
   };
 };
 
+function normalizeNavHref(href: string | undefined | null) {
+  const raw = String(href || "").trim();
+  if (!raw) return "/";
+
+  const lower = raw.toLowerCase();
+  const withoutTrailingSlash =
+    raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw;
+
+  if (lower === "/#about" || lower === "#about" || lower === "about")
+    return "/about";
+  if (lower === "/#services" || lower === "#services" || lower === "services")
+    return "/services";
+  if (lower === "/#contact" || lower === "#contact" || lower === "contact")
+    return "/contact";
+  if (lower === "/#tours" || lower === "#tours" || lower === "tours")
+    return "/tours";
+
+  if (withoutTrailingSlash.startsWith("#")) return `/${withoutTrailingSlash}`;
+  return withoutTrailingSlash;
+}
+
+function getNavHref(label: string, href: string) {
+  const normalizedLabel = String(label || "").trim().toLowerCase();
+  if (normalizedLabel === "destination") return "/destination";
+  return normalizeNavHref(href);
+}
+
 function TopBar({
   contactEmail,
   phoneNumber,
@@ -178,19 +205,23 @@ export function Header() {
           <nav className="hidden lg:flex items-center gap-8">
             {settings?.data?.navLinks && settings.data.navLinks.length > 0 ? (
               settings.data.navLinks.map((l) => (
-                <Link key={`${l.label}-${l.href}`} href={l.href} className="font-medium text-foreground transition-colors hover:text-primary">
+                <Link
+                  key={`${l.label}-${l.href}`}
+                  href={getNavHref(l.label, l.href)}
+                  className="font-medium text-foreground transition-colors hover:text-primary"
+                >
                   {l.label}
                 </Link>
               ))
             ) : (
               <>
                 <Link href="/" className="font-medium text-foreground transition-colors hover:text-primary">Home</Link>
-                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
-                <Link href="/#tours" className="font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
-                <Link href="/#tours" className="font-medium text-foreground transition-colors hover:text-primary">Tour</Link>
-                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">Services</Link>
+                <Link href="/about" className="font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
+                <Link href="/destination" className="font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
+                <Link href="/tours" className="font-medium text-foreground transition-colors hover:text-primary">Tour</Link>
+                <Link href="/services" className="font-medium text-foreground transition-colors hover:text-primary">Services</Link>
                 <Link href="/blog" className="font-medium text-foreground transition-colors hover:text-primary">Blog</Link>
-                <Link href="#" className="font-medium text-foreground transition-colors hover:text-primary">Contact</Link>
+                <Link href="/contact" className="font-medium text-foreground transition-colors hover:text-primary">Contact</Link>
               </>
             )}
           </nav>
@@ -238,19 +269,23 @@ export function Header() {
                   <nav className="flex flex-col gap-4">
                     {settings?.data?.navLinks && settings.data.navLinks.length > 0 ? (
                       settings.data.navLinks.map((l) => (
-                        <Link key={`${l.label}-${l.href}`} href={l.href} className="text-lg font-medium text-foreground transition-colors hover:text-primary">
+                        <Link
+                          key={`${l.label}-${l.href}`}
+                          href={getNavHref(l.label, l.href)}
+                          className="text-lg font-medium text-foreground transition-colors hover:text-primary"
+                        >
                           {l.label}
                         </Link>
                       ))
                     ) : (
                       <>
                         <Link href="/" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Home</Link>
-                        <Link href="#" className="text-lg font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
-                        <Link href="/#tours" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
-                        <Link href="/#tours" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Tour</Link>
-                        <Link href="#" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Services</Link>
+                        <Link href="/about" className="text-lg font-medium text-foreground transition-colors hover:text-primary">About Us</Link>
+                        <Link href="/destination" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Destination</Link>
+                        <Link href="/tours" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Tour</Link>
+                        <Link href="/services" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Services</Link>
                         <Link href="/blog" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Blog</Link>
-                        <Link href="#" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Contact</Link>
+                        <Link href="/contact" className="text-lg font-medium text-foreground transition-colors hover:text-primary">Contact</Link>
                       </>
                     )}
                   </nav>

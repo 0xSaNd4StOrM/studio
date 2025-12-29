@@ -10,6 +10,7 @@ type GetToursOptions = {
   q?: string;
   destination?: string;
   type?: string; // matches tour_type in DB or tour.tourType in app
+  limit?: number;
 };
 
 function ensureTourDefaults(tour: Tour): Tour {
@@ -27,7 +28,7 @@ function ensureTourDefaults(tour: Tour): Tour {
 }
 
 export async function getTours(options: GetToursOptions = {}): Promise<Tour[]> {
-  const { q, destination, type } = options;
+  const { q, destination, type, limit } = options;
   const supabase = await createClient();
 
   let query = supabase.from("tours").select("*");
@@ -37,11 +38,14 @@ export async function getTours(options: GetToursOptions = {}): Promise<Tour[]> {
     query = query.ilike("name", `%${q.trim()}%`);
   }
   if (destination && destination.trim()) {
-    query = query.eq("destination", destination.trim());
+    query = query.ilike("destination", destination.trim());
   }
   if (type && type.trim()) {
     // tour_type is a text column representing the primary type
-    query = query.eq("tour_type", type.trim());
+    query = query.ilike("tour_type", type.trim());
+  }
+  if (limit != null) {
+    query = query.limit(limit);
   }
 
   const { data, error } = await query;
