@@ -11,6 +11,31 @@ function ensureUpsellItemDefaults(item: UpsellItem): UpsellItem {
     ...item,
     isActive: item.isActive ?? false,
     price: item.price ?? 0,
+    variants: item.variants ?? [],
+    targeting: item.targeting ?? null,
+  };
+}
+
+function normalizeVariants(variants: UpsellItem["variants"] | undefined) {
+  return (variants ?? []).map((variant) => ({
+    ...variant,
+    id: variant.id || crypto.randomUUID(),
+  }));
+}
+
+function normalizeTargeting(targeting: UpsellItem["targeting"] | undefined) {
+  if (!targeting) return null;
+
+  const match = targeting.match ?? "any";
+  const destinations = (targeting.destinations ?? []).filter((v) => v && v.length > 0);
+  const tourIds = (targeting.tourIds ?? []).filter((v) => v && v.length > 0);
+
+  if (destinations.length === 0 && tourIds.length === 0) return null;
+
+  return {
+    match,
+    destinations,
+    tourIds,
   };
 }
 
@@ -89,11 +114,15 @@ export async function addUpsellItem(
   const supabase = await createClient();
 
   const imageUrl = await handleImageUpload(formData.images);
+  const variants = normalizeVariants(formData.variants);
+  const targeting = normalizeTargeting(formData.targeting);
 
   const { error } = await supabase.from("upsell_items").insert({
     name: formData.name,
     description: formData.description,
     price: formData.price,
+    variants,
+    targeting,
     type: formData.type,
     related_tour_id: formData.relatedTourId,
     image_url: imageUrl, // Store the uploaded image URL
@@ -120,6 +149,8 @@ export async function updateUpsellItem(
   const supabase = await createClient();
 
   const imageUrl = await handleImageUpload(formData.images, formData.imageUrl); // Pass existing URL
+  const variants = normalizeVariants(formData.variants);
+  const targeting = normalizeTargeting(formData.targeting);
 
   const { error } = await supabase
     .from("upsell_items")
@@ -127,6 +158,8 @@ export async function updateUpsellItem(
       name: formData.name,
       description: formData.description,
       price: formData.price,
+      variants,
+      targeting,
       type: formData.type,
       related_tour_id: formData.relatedTourId,
       image_url: imageUrl, // Update with new or existing URL

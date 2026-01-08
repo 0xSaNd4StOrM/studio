@@ -26,6 +26,14 @@ import { ImageUploader } from "@/components/admin/image-uploader";
 import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z
   .object({
@@ -52,9 +60,47 @@ const formSchema = z
       instagram: z.string().url().or(z.literal("")),
       linkedin: z.string().url().or(z.literal("")),
     }),
+    paymentMethods: z
+      .object({
+        cash: z.boolean(),
+        online: z.boolean(),
+        defaultMethod: z.enum(["cash", "online"]),
+      })
+      .default({ cash: true, online: true, defaultMethod: "online" }),
     currentPassword: z.string().optional(),
     newPassword: z.string().optional(),
     confirmPassword: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.paymentMethods.cash && !data.paymentMethods.online) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enable at least one payment method.",
+        path: ["paymentMethods", "cash"],
+      });
+    }
+
+    if (
+      data.paymentMethods.defaultMethod === "cash" &&
+      !data.paymentMethods.cash
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Default method must be enabled.",
+        path: ["paymentMethods", "defaultMethod"],
+      });
+    }
+
+    if (
+      data.paymentMethods.defaultMethod === "online" &&
+      !data.paymentMethods.online
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Default method must be enabled.",
+        path: ["paymentMethods", "defaultMethod"],
+      });
+    }
   })
   .refine(
     (data) => {
@@ -104,6 +150,11 @@ export default function SettingsPage() {
       currentPassword: "",
       newPassword: "",
       confirmPassword: "",
+      paymentMethods: {
+        cash: true,
+        online: true,
+        defaultMethod: "online",
+      },
     },
   });
 
@@ -123,6 +174,8 @@ export default function SettingsPage() {
       if (!error && data) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const settingsData = (data as any).data ?? {};
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const paymentMethods = (settingsData as any).paymentMethods ?? {};
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setExistingLogoUrl((data as any).logo_url ?? null);
         form.reset({
@@ -151,6 +204,13 @@ export default function SettingsPage() {
           currentPassword: "",
           newPassword: "",
           confirmPassword: "",
+          paymentMethods: {
+            cash: paymentMethods.cash ?? true,
+            online: paymentMethods.online ?? true,
+            defaultMethod:
+              paymentMethods.defaultMethod ??
+              (paymentMethods.online === false ? "cash" : "online"),
+          },
         });
       }
     }
@@ -196,6 +256,7 @@ export default function SettingsPage() {
         navLinks: values.navLinks ?? [],
         aboutUs: values.aboutUs,
         socialMedia: values.socialMedia,
+        paymentMethods: values.paymentMethods,
       },
       logo_url: logoUrl,
       updated_at: new Date().toISOString(),
@@ -482,6 +543,124 @@ export default function SettingsPage() {
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Methods</CardTitle>
+              <CardDescription>
+                Control which payment options appear at checkout.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="paymentMethods.cash"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Cash</FormLabel>
+                      <FormDescription>Pay in cash on arrival.</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          const isOnlineEnabled = form.getValues(
+                            "paymentMethods.online",
+                          );
+                          const currentDefault = form.getValues(
+                            "paymentMethods.defaultMethod",
+                          );
+                          if (
+                            currentDefault === "cash" &&
+                            !checked &&
+                            isOnlineEnabled
+                          ) {
+                            form.setValue(
+                              "paymentMethods.defaultMethod",
+                              "online",
+                            );
+                          }
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentMethods.online"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Online (Kashier)</FormLabel>
+                      <FormDescription>
+                        Pay online to confirm immediately.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          const isCashEnabled = form.getValues(
+                            "paymentMethods.cash",
+                          );
+                          const currentDefault = form.getValues(
+                            "paymentMethods.defaultMethod",
+                          );
+                          if (
+                            currentDefault === "online" &&
+                            !checked &&
+                            isCashEnabled
+                          ) {
+                            form.setValue(
+                              "paymentMethods.defaultMethod",
+                              "cash",
+                            );
+                          }
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="paymentMethods.defaultMethod"
+                render={({ field }) => {
+                  const cashEnabled = form.watch("paymentMethods.cash");
+                  const onlineEnabled = form.watch("paymentMethods.online");
+
+                  return (
+                    <FormItem>
+                      <FormLabel>Default method</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select default payment method" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="cash" disabled={!cashEnabled}>
+                            Cash
+                          </SelectItem>
+                          <SelectItem value="online" disabled={!onlineEnabled}>
+                            Online (Kashier)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </CardContent>
           </Card>

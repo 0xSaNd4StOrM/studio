@@ -75,7 +75,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             item.product.id === product.id && 
             item.productType === productType &&
             // If packages are used, treat different packages as different items
-            (packageId ? item.packageId === packageId : true),
+            (item.packageId ?? "base") === (packageId ?? "base"),
         );
         if (existingItem) {
           toastMessage = {
@@ -108,7 +108,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           (item) =>
             item.product.id === productId && 
             item.productType === productType &&
-            (packageId ? item.packageId === packageId : true),
+            (item.packageId ?? "base") === (packageId ?? "base"),
         );
         if (itemToRemove) {
           productName = itemToRemove.product.name;
@@ -118,7 +118,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             !(
               item.product.id === productId && 
               item.productType === productType &&
-              (packageId ? item.packageId === packageId : true)
+              (item.packageId ?? "base") === (packageId ?? "base")
             ),
         );
       });
@@ -166,7 +166,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         return total + itemTotal;
       } else if (item.productType === "upsell") {
         const upsellItem = item.product as UpsellItem;
-        return total + upsellItem.price * (item.quantity ?? 1);
+        const variant =
+          item.packageId && upsellItem.variants
+            ? upsellItem.variants.find((v) => v.id === item.packageId)
+            : undefined;
+        const price = variant?.price ?? upsellItem.price;
+        return total + price * (item.quantity ?? 1);
       }
       return total;
     }, 0);

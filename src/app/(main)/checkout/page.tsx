@@ -3,7 +3,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/hooks/use-cart";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +26,15 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { createBooking } from "@/lib/supabase/bookings";
+import { buildKashierHppUrl } from "@/lib/kashier";
 import { format } from "date-fns";
 import { type Tour, type UpsellItem } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -41,12 +44,19 @@ const formSchema = z.object({
     .min(10, "Phone number is required.")
     .regex(/^\+?[0-9\s\-()]*$/, "Invalid phone number format."),
   nationality: z.string().min(2, "Nationality is required."),
+  paymentMethod: z.enum(["cash", "online"]),
 });
 
+type PaymentMethod = z.infer<typeof formSchema>["paymentMethod"];
+
 export default function CheckoutPage() {
-  const router = useRouter();
-  const { cartItems, getCartTotal, clearCart } = useCart();
+  const { cartItems, getCartTotal } = useCart();
   const { toast } = useToast();
+  const [paymentConfig, setPaymentConfig] = useState<{
+    cash: boolean;
+    online: boolean;
+    defaultMethod: PaymentMethod;
+  } | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -55,8 +65,92 @@ export default function CheckoutPage() {
       email: "",
       phoneNumber: "",
       nationality: "",
+      paymentMethod: "online",
     },
   });
+
+  const paymentMethodsEnabled = useMemo(() => {
+    let cash = paymentConfig?.cash ?? true;
+    let online = paymentConfig?.online ?? true;
+    const defaultMethod = paymentConfig?.defaultMethod ?? "online";
+
+    if (!cash && !online) {
+      cash = true;
+      online = true;
+    }
+
+    const fallbackDefault: PaymentMethod =
+      defaultMethod === "cash"
+        ? cash
+          ? "cash"
+          : "online"
+        : online
+          ? "online"
+          : "cash";
+
+    return {
+      cash,
+      online,
+      defaultMethod: fallbackDefault,
+    };
+  }, [paymentConfig]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPaymentMethods() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("settings")
+          .select("data")
+          .eq("id", 1)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (error) return;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const settingsData = ((data as any)?.data ?? {}) as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const paymentMethods = (settingsData?.paymentMethods ?? {}) as any;
+
+        const cash = paymentMethods.cash ?? true;
+        const online = paymentMethods.online ?? true;
+        const rawDefault = paymentMethods.defaultMethod;
+        const defaultMethod: PaymentMethod =
+          rawDefault === "cash" || rawDefault === "online" ? rawDefault : "online";
+
+        const normalizedCash = cash || (!cash && !online);
+        const normalizedOnline = online || (!cash && !online);
+
+        const nextDefault: PaymentMethod =
+          defaultMethod === "cash"
+            ? normalizedCash
+              ? "cash"
+              : "online"
+            : normalizedOnline
+              ? "online"
+              : "cash";
+
+        setPaymentConfig({
+          cash: normalizedCash,
+          online: normalizedOnline,
+          defaultMethod: nextDefault,
+        });
+
+        form.setValue("paymentMethod", nextDefault, { shouldValidate: true });
+      } catch {
+        if (cancelled) return;
+      }
+    }
+
+    void loadPaymentMethods();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (cartItems.length === 0) {
@@ -69,23 +163,41 @@ export default function CheckoutPage() {
     }
 
     try {
-      await createBooking({
+      const bookingId = await createBooking({
         customerName: values.name,
         customerEmail: values.email,
         phoneNumber: values.phoneNumber,
         nationality: values.nationality,
         cartItems: cartItems,
         totalPrice: getCartTotal(),
+        paymentMethod: values.paymentMethod,
       });
+
+      if (values.paymentMethod === "cash") {
+        toast({
+          title: "Booking Confirmed",
+          description: "Your booking has been placed successfully.",
+        });
+        window.location.href = `/checkout/success?merchantOrderId=${encodeURIComponent(bookingId)}`;
+        return;
+      }
 
       toast({
-        title: "Order Placed!",
-        description:
-          "Thank you for your purchase. A confirmation has been sent to your email.",
+        title: "Redirecting to Payment",
+        description: "Complete your payment to confirm the booking.",
       });
 
-      clearCart();
-      router.push("/checkout/success");
+      const paymentUrl = await buildKashierHppUrl({
+        merchantOrderId: bookingId,
+        amount: getCartTotal(),
+        customer: {
+          name: values.name,
+          email: values.email,
+          mobile: values.phoneNumber,
+        },
+      });
+
+      window.location.href = paymentUrl;
     } catch (error) {
       console.error("Error placing order:", error);
       toast({
@@ -175,7 +287,12 @@ export default function CheckoutPage() {
       const upsellItem = item.product as UpsellItem;
       productImage = upsellItem.imageUrl || "/placeholder-upsell.png";
       productDescription = upsellItem.description || "Additional Service";
-      itemTotal = upsellItem.price * (item.quantity ?? 1);
+      const variant =
+        item.packageId && upsellItem.variants
+          ? upsellItem.variants.find((v) => v.id === item.packageId)
+          : undefined;
+      const price = variant?.price ?? upsellItem.price;
+      itemTotal = price * (item.quantity ?? 1);
     }
 
     return {
@@ -291,6 +408,54 @@ export default function CheckoutPage() {
                         <FormLabel>Nationality</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., American, Egyptian" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2 space-y-3">
+                        <FormLabel>Payment Method</FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            className="grid gap-3 sm:grid-cols-2"
+                          >
+                            {paymentMethodsEnabled.cash ? (
+                              <label
+                                htmlFor="payment-cash"
+                                className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-background p-4"
+                              >
+                                <RadioGroupItem value="cash" id="payment-cash" />
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium leading-none">Cash</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Pay in cash on arrival.
+                                  </p>
+                                </div>
+                              </label>
+                            ) : null}
+                            {paymentMethodsEnabled.online ? (
+                              <label
+                                htmlFor="payment-online"
+                                className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-background p-4"
+                              >
+                                <RadioGroupItem value="online" id="payment-online" />
+                                <div className="space-y-1">
+                                  <p className="text-sm font-medium leading-none">
+                                    Online (Kashier)
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Pay online to confirm immediately.
+                                  </p>
+                                </div>
+                              </label>
+                            ) : null}
+                          </RadioGroup>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -77,25 +77,48 @@ interface CreateBookingData {
   nationality: string;
   cartItems: CartItem[];
   totalPrice: number;
+  paymentMethod: "cash" | "online";
 }
 
 export async function createBooking(data: CreateBookingData) {
   const supabase = await createClient();
 
   // 1. Insert into bookings table
-  const { data: bookingData, error: bookingError } = await supabase
-    .from("bookings")
-    .insert({
-      customer_name: data.customerName,
-      customer_email: data.customerEmail,
-      phone_number: data.phoneNumber,
-      nationality: data.nationality,
-      total_price: data.totalPrice,
-      status: "Pending", // Default status
-      booking_date: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+  const status = data.paymentMethod === "cash" ? "Confirmed" : "Pending";
+  const insertPayload = {
+    customer_name: data.customerName,
+    customer_email: data.customerEmail,
+    phone_number: data.phoneNumber,
+    nationality: data.nationality,
+    total_price: data.totalPrice,
+    status,
+    booking_date: new Date().toISOString(),
+    payment_method: data.paymentMethod,
+  };
+
+  let bookingData: { id: string } | null = null;
+  let bookingError: { message?: string } | null = null;
+
+  {
+    const res = await supabase
+      .from("bookings")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+    bookingData = (res.data as { id: string } | null) ?? null;
+    bookingError = (res.error as { message?: string } | null) ?? null;
+  }
+
+  if (bookingError?.message?.includes("payment_method")) {
+    const { payment_method: _paymentMethod, ...fallbackPayload } = insertPayload;
+    const res = await supabase
+      .from("bookings")
+      .insert(fallbackPayload)
+      .select("id")
+      .single();
+    bookingData = (res.data as { id: string } | null) ?? null;
+    bookingError = (res.error as { message?: string } | null) ?? null;
+  }
 
   if (bookingError || !bookingData) {
     console.error("Error creating booking:", bookingError);
@@ -143,7 +166,12 @@ export async function createBooking(data: CreateBookingData) {
     } else if (item.productType === "upsell") {
       const upsellItem = item.product as UpsellItem;
       upsellItemId = upsellItem.id;
-      itemPrice = upsellItem.price * (item.quantity ?? 1);
+      const variant =
+        item.packageId && upsellItem.variants
+          ? upsellItem.variants.find((v) => v.id === item.packageId)
+          : undefined;
+      const price = variant?.price ?? upsellItem.price;
+      itemPrice = price * (item.quantity ?? 1);
     }
 
     return {
@@ -169,8 +197,5 @@ export async function createBooking(data: CreateBookingData) {
   }
 
   revalidatePath("/admin/bookings");
-  revalidatePath("/"); // Revalidate homepage if needed
-  revalidatePath("/tours"); // Revalidate tours page if needed
-
-  return { success: true, bookingId };
+  return bookingId as string;
 }

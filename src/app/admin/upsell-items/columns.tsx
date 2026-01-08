@@ -157,6 +157,32 @@ export const columns = ({
     },
   },
   {
+    id: "variants",
+    header: "Variants",
+    cell: ({ row }) => {
+      const count = row.original.variants?.length ?? 0;
+      return <div className="font-mono">{count}</div>;
+    },
+  },
+  {
+    id: "rules",
+    header: "Rules",
+    cell: ({ row }) => {
+      const targeting = row.original.targeting;
+      if (!targeting) return <div className="text-muted-foreground">All</div>;
+      const destinations = targeting.destinations?.length ?? 0;
+      const tours = targeting.tourIds?.length ?? 0;
+      if (destinations === 0 && tours === 0) return <div className="text-muted-foreground">All</div>;
+      return (
+        <div className="text-sm text-muted-foreground">
+          {destinations > 0 ? `${destinations} dest` : null}
+          {destinations > 0 && tours > 0 ? " • " : null}
+          {tours > 0 ? `${tours} tours` : null}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "isActive",
     header: "Active",
     cell: ({ row }) => {

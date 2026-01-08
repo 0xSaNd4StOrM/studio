@@ -39,11 +39,25 @@ export type Tour = {
   cancellationPolicy?: string;
 };
 
+export type UpsellVariant = {
+  id?: string;
+  name: string;
+  price: number;
+};
+
+export type UpsellTargeting = {
+  match?: "any" | "all";
+  destinations?: string[];
+  tourIds?: string[];
+};
+
 export type UpsellItem = {
   id: string;
   name: string;
   description?: string;
   price: number;
+  variants?: UpsellVariant[];
+  targeting?: UpsellTargeting | null;
   type: "service" | "tour_addon";
   relatedTourId?: string | null; // uuid
   imageUrl?: string; // New: URL for the upsell item image
@@ -95,6 +109,7 @@ export type Booking = {
   bookingDate: string; // ISO string format for dates
   totalPrice: number;
   status: "Confirmed" | "Pending" | "Cancelled";
+  paymentMethod?: "cash" | "online";
   bookingItems: BookingItem[];
 };
 

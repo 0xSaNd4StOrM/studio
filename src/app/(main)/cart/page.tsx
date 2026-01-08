@@ -27,6 +27,13 @@ import { getAiSuggestions } from "@/app/actions";
 import { getUpsellItems } from "@/lib/supabase/upsell-items";
 import type { CartItem, UpsellItem, Tour } from "@/types";
 import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -49,6 +56,7 @@ export default function CartPage() {
     suggestions: [],
   });
   const [upsellItems, setUpsellItems] = useState<UpsellItem[]>([]);
+  const [selectedUpsellVariant, setSelectedUpsellVariant] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchUpsells = async () => {
@@ -57,6 +65,45 @@ export default function CartPage() {
     };
     fetchUpsells();
   }, []);
+
+  const tourItems = cartItems.filter((item) => item.productType === "tour") as Array<CartItem & { product: Tour }>;
+  const tourDestinations = Array.from(
+    new Set(tourItems.map((item) => (item.product as Tour).destination).filter(Boolean)),
+  );
+
+  const isUpsellEligible = (upsell: UpsellItem) => {
+    if (!upsell.isActive) return false;
+    const targeting = upsell.targeting;
+    if (!targeting) return true;
+
+    const match = targeting.match ?? "any";
+    const requiredDestinations = (targeting.destinations ?? []).filter(Boolean);
+    const requiredTourIds = (targeting.tourIds ?? []).filter(Boolean);
+
+    if (requiredDestinations.length === 0 && requiredTourIds.length === 0) return true;
+
+    const checks: boolean[] = [];
+    if (requiredDestinations.length > 0) {
+      checks.push(requiredDestinations.some((d) => tourDestinations.includes(d)));
+    }
+    if (requiredTourIds.length > 0) {
+      checks.push(requiredTourIds.some((id) => tourItems.some((t) => (t.product as Tour).id === id)));
+    }
+
+    return match === "all" ? checks.every(Boolean) : checks.some(Boolean);
+  };
+
+  const getUpsellDisplay = (upsell: UpsellItem) => {
+    const selected = selectedUpsellVariant[upsell.id] ?? "__base__";
+    const variantId = selected === "__base__" ? undefined : selected;
+    const variant =
+      variantId && upsell.variants ? upsell.variants.find((v) => v.id === variantId) : undefined;
+    return {
+      variantId,
+      variantName: variant?.name,
+      price: variant?.price ?? upsell.price,
+    };
+  };
 
   const tourDescriptions = cartItems
     .filter((item) => item.productType === "tour")
@@ -67,7 +114,11 @@ export default function CartPage() {
 
   const getItemTotal = (item: CartItem) => {
     if (item.productType === "upsell") {
-      return (item.product as UpsellItem).price * (item.quantity || 1);
+      const upsell = item.product as UpsellItem;
+      const variant =
+        item.packageId && upsell.variants ? upsell.variants.find((v) => v.id === item.packageId) : undefined;
+      const price = variant?.price ?? upsell.price;
+      return price * (item.quantity || 1);
     }
 
     const tour = item.product as Tour;
@@ -319,7 +370,17 @@ export default function CartPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {upsellItems.map((item) => (
+                  {upsellItems.filter(isUpsellEligible).map((item) => {
+                    const display = getUpsellDisplay(item);
+                    const selectValue = display.variantId ?? "__base__";
+                    const alreadyInCart = cartItems.some(
+                      (cartItem) =>
+                        cartItem.product.id === item.id &&
+                        cartItem.productType === "upsell" &&
+                        (cartItem.packageId ?? "base") === (display.variantId ?? "base"),
+                    );
+
+                    return (
                     <div
                       key={item.id}
                       className="flex flex-col gap-3 rounded-2xl border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -343,21 +404,53 @@ export default function CartPage() {
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between gap-3 sm:justify-end">
-                        <span className="font-semibold">${item.price.toLocaleString()}</span>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                        {item.variants && item.variants.length > 0 ? (
+                          <Select
+                            value={selectValue}
+                            onValueChange={(value) =>
+                              setSelectedUpsellVariant((prev) => ({ ...prev, [item.id]: value }))
+                            }
+                          >
+                            <SelectTrigger className="w-full sm:w-56">
+                              <SelectValue placeholder="Select option" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__base__">Base</SelectItem>
+                              {(item.variants ?? [])
+                                .filter((variant): variant is { id: string; name: string; price: number } =>
+                                  Boolean(variant.id),
+                                )
+                                .map((variant) => (
+                                  <SelectItem key={variant.id} value={variant.id}>
+                                    {variant.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        ) : null}
+                        <span className="font-semibold">${display.price.toLocaleString()}</span>
                         <Button
                           size="sm"
-                          onClick={() => addToCart(item, "upsell", undefined, undefined, undefined, 1)}
-                          disabled={cartItems.some(
-                            (cartItem) =>
-                              cartItem.product.id === item.id && cartItem.productType === "upsell",
-                          )}
+                          onClick={() =>
+                            addToCart(
+                              item,
+                              "upsell",
+                              undefined,
+                              undefined,
+                              undefined,
+                              1,
+                              display.variantId,
+                              display.variantName,
+                            )
+                          }
+                          disabled={alreadyInCart}
                         >
                           <PlusCircle className="mr-1 h-4 w-4" /> Add
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </CardContent>
               </Card>
             )}
