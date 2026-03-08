@@ -4,6 +4,7 @@ import { ImpersonationBanner } from '@/components/admin/impersonation-banner';
 import { AdminLayoutShell } from '@/components/admin/layout-shell';
 import { getCurrentAgency } from '@/lib/supabase/agencies';
 import { getBookings } from '@/lib/supabase/bookings';
+import { recordAdminLogin } from '@/lib/supabase/super-admin';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -20,6 +21,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const [agency, allBookings] = await Promise.all([getCurrentAgency(), getBookings()]);
   const settings = agency?.settings || {};
   const pendingBookingsCount = allBookings.filter((b) => b.status === 'Pending').length;
+
+  // Record admin login timestamp (non-blocking)
+  if (agency?.id) {
+    recordAdminLogin(agency.id).catch(() => {});
+  }
 
   return (
     <AdminLayoutShell user={user} settings={settings} pendingBookingsCount={pendingBookingsCount}>

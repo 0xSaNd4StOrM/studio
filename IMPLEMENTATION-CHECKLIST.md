@@ -375,31 +375,33 @@ _Started: March 3, 2026_
 
 > You need to see the health of every client at a glance — one screen that tells you everything.
 
-- [ ] **S1.1 — Super admin home dashboard (stats overview)**
-  - Top-row KPI cards: Total Agencies / Active / Suspended / New This Month
-  - Second row: Total Bookings Across All Tenants / Total Revenue (all tenants combined) / Active Users Today
-  - This is your SaaS command center — currently it jumps straight to the agency list
+- [x] **S1.1 — Super admin home dashboard (stats overview)**
+  - ✅ KPI Row 1: Total Agencies / Active / Suspended / New This Month
+  - ✅ KPI Row 2: Total Bookings (all tenants) / Total Revenue (all tenants) / Context Mode
+  - ✅ Data layer: `src/lib/supabase/super-admin.ts` — `getPlatformStats()` aggregates across all agencies
   - File: `src/app/super-admin/page.tsx`
 
-- [ ] **S1.2 — Agency health status column in the list**
-  - Add a "Health" indicator column to the agency table: 🟢 Active / 🟡 Low Activity / 🔴 No Activity (30+ days)
-  - "Low Activity" = no bookings in the last 14 days
-  - "No Activity" = no bookings in the last 30 days
-  - Helps you identify churning clients before they cancel
+- [x] **S1.2 — Agency health status column in the list**
+  - ✅ "Health" column with colored dot indicator: 🟢 Active (booking ≤14d) / 🟡 Low Activity (14–30d) / 🔴 No Activity (30+ days or never)
+  - ✅ Computed from last booking date per agency via `getAgencyHealthData()`
+  - File: `src/components/super-admin/agency-list.tsx`
 
-- [ ] **S1.3 — Per-agency quick-stats row**
-  - When you expand or hover an agency row, show: total bookings, revenue this month, last booking date, last admin login
-  - Gives context without navigating away from the list
+- [x] **S1.3 — Per-agency quick-stats row**
+  - ✅ Expandable row (chevron toggle) showing: Total Bookings, Revenue This Month, Last Booking, Last Admin Login
+  - ✅ All data computed server-side in `getAgencyHealthData()` and passed via `healthData` prop
+  - File: `src/components/super-admin/agency-list.tsx`
 
-- [ ] **S1.4 — Last admin login tracking**
-  - Record `last_admin_login_at` in the `agencies` table whenever an agency admin logs into their panel
-  - Show this in the agency list — if an admin hasn't logged in for 30+ days, flag it
-  - Identifies disengaged clients who may need a check-in call
+- [x] **S1.4 — Last admin login tracking**
+  - ✅ `last_admin_login_at` column added to `agencies` table (timestamptz, nullable)
+  - ✅ `recordAdminLogin(agencyId)` called non-blocking in admin layout on every admin page load
+  - ✅ Shown in agency list expandable row with relative time formatting
+  - Files: `src/lib/supabase/super-admin.ts`, `src/app/admin/layout.tsx`
 
-- [ ] **S1.5 — Global revenue chart (all tenants)**
-  - Line chart of total platform revenue across all agencies over the last 30/90 days
-  - Shows your own business growth, not just individual client stats
-  - On the super admin home dashboard
+- [x] **S1.5 — Global revenue chart (all tenants)**
+  - ✅ Line chart (recharts) with 30-day / 90-day toggle on the super admin dashboard
+  - ✅ `getGlobalRevenueData(days)` builds daily revenue buckets across all tenants
+  - ✅ `GlobalRevenueChart` client component with Select period switcher
+  - File: `src/components/super-admin/global-revenue-chart.tsx`
 
 ---
 

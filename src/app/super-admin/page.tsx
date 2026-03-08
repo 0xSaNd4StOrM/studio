@@ -7,30 +7,50 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DeployTenantDialog } from '@/components/super-admin/deploy-tenant-dialog';
 import { AgencyList } from '@/components/super-admin/agency-list';
 import { BroadcastManager } from '@/components/super-admin/broadcast-manager';
-import { Activity, Building2, ShieldCheck, Power } from 'lucide-react';
+import { GlobalRevenueChart } from '@/components/super-admin/global-revenue-chart';
+import {
+  Building2,
+  Activity,
+  TrendingUp,
+  CalendarPlus,
+  ShoppingCart,
+  DollarSign,
+} from 'lucide-react';
+import {
+  getPlatformStats,
+  getAgencyHealthData,
+  getGlobalRevenueData,
+} from '@/lib/supabase/super-admin';
 
 export default async function SuperAdminPage() {
   const supabase = await createClient();
 
-  // Fetch all agencies
-  const { data: agencies, error } = await supabase
-    .from('agencies')
-    .select('*')
-    .order('created_at', { ascending: false });
+  // Fetch all data in parallel
+  const [
+    { data: agencies, error },
+    broadcasts,
+    currentSlug,
+    cookieStore,
+    stats,
+    healthData,
+    revenue30,
+    revenue90,
+  ] = await Promise.all([
+    supabase.from('agencies').select('*').order('created_at', { ascending: false }),
+    getAllBroadcasts(),
+    getCurrentAgencySlug(),
+    cookies(),
+    getPlatformStats(),
+    getAgencyHealthData(),
+    getGlobalRevenueData(30),
+    getGlobalRevenueData(90),
+  ]);
 
   if (error) {
     console.error('Error fetching agencies:', error);
   }
 
-  // Fetch Broadcasts
-  const broadcasts = await getAllBroadcasts();
-  const currentSlug = await getCurrentAgencySlug();
-  const cookieStore = await cookies();
   const isOverridden = !!cookieStore.get('admin_agency_override')?.value;
-
-  // Calculate Stats
-  const totalAgencies = agencies?.length || 0;
-  const activeAgencies = agencies?.filter((a) => a.status === 'active').length || 0;
 
   return (
     <div className="space-y-8">
@@ -45,36 +65,76 @@ export default async function SuperAdminPage() {
         </div>
       </div>
 
-      {/* Stats Overview */}
+      {/* KPI Row 1 — Agency Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-zinc-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">Total Tenants</CardTitle>
+            <CardTitle className="text-sm font-medium text-zinc-500">Total Agencies</CardTitle>
             <Building2 className="h-4 w-4 text-zinc-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">{totalAgencies}</div>
-            <p className="text-xs text-zinc-500">Registered agencies</p>
+            <div className="text-2xl font-bold text-zinc-900">{stats.totalAgencies}</div>
+            <p className="text-xs text-zinc-500">Registered tenants</p>
           </CardContent>
         </Card>
         <Card className="border-zinc-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">Active Instances</CardTitle>
+            <CardTitle className="text-sm font-medium text-zinc-500">Active</CardTitle>
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">{activeAgencies}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.activeAgencies}</div>
             <p className="text-xs text-zinc-500">Currently live</p>
           </CardContent>
         </Card>
         <Card className="border-zinc-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">System Status</CardTitle>
-            <ShieldCheck className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-zinc-500">Suspended</CardTitle>
+            <Activity className="h-4 w-4 text-red-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-zinc-900">Healthy</div>
-            <p className="text-xs text-zinc-500">All systems operational</p>
+            <div className="text-2xl font-bold text-red-600">{stats.suspendedAgencies}</div>
+            <p className="text-xs text-zinc-500">Offline agencies</p>
+          </CardContent>
+        </Card>
+        <Card className="border-zinc-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-500">New This Month</CardTitle>
+            <CalendarPlus className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-zinc-900">{stats.newThisMonth}</div>
+            <p className="text-xs text-zinc-500">Signed up this month</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* KPI Row 2 — Platform Metrics */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-zinc-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-500">Total Bookings</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-zinc-900">{stats.totalBookings}</div>
+            <p className="text-xs text-zinc-500">Across all tenants</p>
+          </CardContent>
+        </Card>
+        <Card className="border-zinc-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-500">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-zinc-900">
+              $
+              {stats.totalRevenue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </div>
+            <p className="text-xs text-zinc-500">All tenants combined</p>
           </CardContent>
         </Card>
         <Card
@@ -82,7 +142,9 @@ export default async function SuperAdminPage() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-500">Context Mode</CardTitle>
-            <Power className={`h-4 w-4 ${isOverridden ? 'text-amber-600' : 'text-zinc-400'}`} />
+            <TrendingUp
+              className={`h-4 w-4 ${isOverridden ? 'text-amber-600' : 'text-zinc-400'}`}
+            />
           </CardHeader>
           <CardContent>
             <div
@@ -96,6 +158,9 @@ export default async function SuperAdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Global Revenue Chart */}
+      <GlobalRevenueChart data30={revenue30} data90={revenue90} />
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="agencies" className="space-y-4">
@@ -115,7 +180,7 @@ export default async function SuperAdminPage() {
         </TabsList>
 
         <TabsContent value="agencies" className="space-y-4">
-          <AgencyList agencies={agencies || []} currentSlug={currentSlug} />
+          <AgencyList agencies={agencies || []} currentSlug={currentSlug} healthData={healthData} />
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">
