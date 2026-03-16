@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { ContactMessage, ContactMessageStatus } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { toCamelCase } from '@/lib/utils';
@@ -34,7 +35,7 @@ export async function createContactMessage(input: {
 }
 
 export async function createCustomerFromMessage(message: ContactMessage): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase.from('customers').insert({
@@ -84,7 +85,7 @@ export async function updateContactMessageStatus(
   id: string,
   status: ContactMessageStatus
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase

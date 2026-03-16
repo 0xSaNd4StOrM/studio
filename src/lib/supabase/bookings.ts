@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Booking, CartItem, Tour, UpsellItem, PriceTier } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { toCamelCase } from '@/lib/utils';
@@ -54,7 +55,7 @@ export async function getBookingById(id: string): Promise<Booking | null> {
 }
 
 export async function updateBookingStatus(bookingId: string, status: Booking['status']) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase
@@ -112,7 +113,7 @@ export async function updateBookingStatus(bookingId: string, status: Booking['st
 }
 
 export async function deleteBooking(bookingId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { toCamelCase } from '@/lib/utils';
 import type { Hotel, HotelBooking, RoomInventory, RoomType } from '@/types';
@@ -243,7 +244,7 @@ export async function addRoomType(input: {
   isFeatured?: boolean;
   isActive: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const slugBase = slugify(input.slug?.trim() || input.name);
   const base = slugBase || `room-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -350,7 +351,7 @@ export async function updateRoomType(input: {
   isFeatured?: boolean;
   isActive: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const slugBase = slugify(input.slug?.trim() || input.name);
   const slug = slugBase || `room-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -428,15 +429,8 @@ export async function createHotelProfile(input: {
   checkOutTime?: string;
   isActive: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
-
-  const { error: ensureError } = await supabase.rpc('ensure_agency_membership', {
-    target_agency: agencyId,
-  });
-  if (ensureError) {
-    throw ensureError;
-  }
 
   const { data: existing, error: existingError } = await supabase
     .from('hotels')
@@ -513,15 +507,8 @@ export async function updateHotelProfile(input: {
   checkOutTime?: string;
   isActive: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
-
-  const { error: ensureError } = await supabase.rpc('ensure_agency_membership', {
-    target_agency: agencyId,
-  });
-  if (ensureError) {
-    throw ensureError;
-  }
 
   const slugBase = slugify(input.slug?.trim() || input.name);
   const slug = slugBase || `hotel-${crypto.randomUUID().slice(0, 8)}`;
@@ -568,7 +555,7 @@ export async function upsertRoomInventoryRange(input: {
   pricePerNight: number;
   stopSell: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
 
   const fromDate = new Date(`${input.from}T00:00:00Z`);
   const toDate = new Date(`${input.to}T00:00:00Z`);

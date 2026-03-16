@@ -36,6 +36,7 @@ import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/image-uploader';
 import { createClient } from '@/lib/supabase/client';
 import { Combobox } from '@/components/ui/combobox';
+import { Switch } from '@/components/ui/switch';
 import { useEffect, useState, useActionState, useRef } from 'react';
 import { generateBlogPostAction } from '@/app/actions';
 import { HtmlEditorToolbar } from '@/components/admin/html-editor-toolbar';
@@ -64,6 +65,7 @@ const formSchema = z.object({
   featuredImage: z.array(z.any()).optional(),
   topic: z.string().optional(),
   keywords: z.string().optional(),
+  isFeatured: z.boolean().optional(),
 });
 
 function GenerateButton({ pending }: { pending: boolean }) {
@@ -113,6 +115,7 @@ export default function EditPostPage() {
       featuredImage: [],
       topic: '',
       keywords: '',
+      isFeatured: false,
     },
   });
 
@@ -123,7 +126,7 @@ export default function EditPostPage() {
       const { data, error } = await supabase
         .from('posts')
         .select(
-          'id, slug, title, content, author, status, tags, featured_image, created_at, updated_at'
+          'id, slug, title, content, author, status, tags, featured_image, created_at, updated_at, is_featured'
         )
         .eq('slug', slug)
         .maybeSingle();
@@ -145,6 +148,7 @@ export default function EditPostPage() {
           status: data.status,
           tags: (data.tags as string[] | null) ?? [],
           featuredImage: [], // Can't pre-populate file inputs
+          isFeatured: (data as Record<string, unknown>).is_featured === true,
         });
       }
     }
@@ -208,6 +212,7 @@ export default function EditPostPage() {
       featured_image: featuredImageUrl ?? post?.featuredImage ?? null,
       created_at: post?.createdAt ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      is_featured: values.isFeatured ?? false,
     };
 
     const { error } = await supabase.from('posts').upsert(payload, {
@@ -414,6 +419,23 @@ export default function EditPostPage() {
                           </SelectContent>
                         </Select>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="isFeatured"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel className="cursor-pointer">Featured Post</FormLabel>
+                          <FormDescription className="text-xs">
+                            Pin this post as the hero on the blog page.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
                       </FormItem>
                     )}
                   />

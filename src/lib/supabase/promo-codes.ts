@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import type { PromoCode } from '@/types';
 import { toCamelCase } from '@/lib/utils';
@@ -61,7 +62,7 @@ export async function getPromoCodeById(id: string): Promise<PromoCode | null> {
 }
 
 export async function createPromoCode(input: Omit<PromoCode, 'id' | 'createdAt' | 'usageCount'>) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase.from('promo_codes').insert({
@@ -88,7 +89,7 @@ export async function updatePromoCode(
   id: string,
   input: Partial<Omit<PromoCode, 'id' | 'createdAt' | 'usageCount'>>
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const updateData: Partial<DbPromoCode> = {};
@@ -119,7 +120,7 @@ export async function updatePromoCode(
 }
 
 export async function deletePromoCode(id: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase

@@ -1,5 +1,6 @@
 'use server';
 import { createClient } from './server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Customer } from '@/types';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 
@@ -62,7 +63,7 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function syncCustomersFromBookings() {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // fetch all bookings

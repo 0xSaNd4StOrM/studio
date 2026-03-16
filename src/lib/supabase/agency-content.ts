@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { HomeContent } from '@/types';
 import { revalidatePath } from 'next/cache';
@@ -226,7 +227,7 @@ export async function updateAgencySettings(
   logoUrl?: string | null,
   faviconUrl?: string | null
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // Check if settings row exists for this agency
@@ -489,7 +490,7 @@ export async function getHomePageContent() {
 }
 
 export async function updateHomePageContent(content: HomeContent) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const existing = await getHomePageContent();

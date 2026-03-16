@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from './server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Post } from '@/types';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 
@@ -15,6 +16,8 @@ type DbPost = {
   updated_at: string | null;
   featured_image: string | null;
   tags: string[] | null;
+  is_featured: boolean;
+  views: number;
 };
 
 function toPost(row: DbPost): Post {
@@ -27,12 +30,15 @@ function toPost(row: DbPost): Post {
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
-    // Ensure type consistency: Post.featuredImage is a string in types
-    // Use empty string when no image is set
     featuredImage: row.featured_image ?? '',
     tags: row.tags ?? [],
+    isFeatured: row.is_featured ?? false,
+    views: row.views ?? 0,
   };
 }
+
+const POST_SELECT =
+  'id, slug, title, content, author, status, created_at, updated_at, featured_image, tags, is_featured, views';
 
 export async function getPosts(): Promise<Post[]> {
   const supabase = await createClient();
@@ -41,10 +47,9 @@ export async function getPosts(): Promise<Post[]> {
   try {
     const { data, error } = await supabase
       .from('posts')
-      .select(
-        'id, slug, title, content, author, status, created_at, updated_at, featured_image, tags'
-      )
+      .select(POST_SELECT)
       .eq('agency_id', agencyId)
+      .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -66,9 +71,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   try {
     const { data, error } = await supabase
       .from('posts')
-      .select(
-        'id, slug, title, content, author, status, created_at, updated_at, featured_image, tags'
-      )
+      .select(POST_SELECT)
       .eq('slug', slug)
       .eq('agency_id', agencyId)
       .maybeSingle();
@@ -87,7 +90,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 }
 
 export async function upsertPost(post: Post): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   try {
@@ -102,6 +105,7 @@ export async function upsertPost(post: Post): Promise<{ ok: boolean; error?: str
       updated_at: new Date().toISOString(),
       featured_image: post.featuredImage ?? null,
       tags: post.tags ?? [],
+      is_featured: post.isFeatured ?? false,
       agency_id: agencyId,
     };
     // Note: onConflict: "slug" might need to be "slug, agency_id" if we have a composite unique constraint.
@@ -120,7 +124,7 @@ export async function upsertPost(post: Post): Promise<{ ok: boolean; error?: str
 }
 
 export async function deletePostBySlug(slug: string): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
   try {
     const { error } = await supabase
@@ -133,5 +137,73 @@ export async function deletePostBySlug(slug: string): Promise<{ ok: boolean; err
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     return { ok: false, error: err?.message ?? String(err) };
+  }
+}
+
+export async function getRelatedPosts(
+  currentSlug: string,
+  tags: string[],
+  limit = 3
+): Promise<Post[]> {
+  const supabase = await createClient();
+  const agencyId = await getCurrentAgencyId();
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(POST_SELECT)
+      .eq('agency_id', agencyId)
+      .eq('status', 'Published')
+      .neq('slug', currentSlug)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data) return [];
+
+    const posts = (data as DbPost[]).map(toPost);
+
+    // Score by shared tags, then sort by score desc, date desc
+    const scored = posts.map((p) => {
+      const shared = p.tags.filter((t) => tags.includes(t)).length;
+      return { post: p, score: shared };
+    });
+    scored.sort((a, b) => b.score - a.score || 0);
+
+    return scored.slice(0, limit).map((s) => s.post);
+  } catch {
+    return [];
+  }
+}
+
+export async function subscribeEmail(email: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const agencyId = await getCurrentAgencyId();
+
+  try {
+    const { error } = await supabase
+      .from('subscribers')
+      .upsert(
+        { agency_id: agencyId, email: email.toLowerCase().trim() },
+        { onConflict: 'agency_id,email' }
+      );
+    if (error) throw error;
+    return { ok: true };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (err: any) {
+    if (err?.message?.includes('duplicate') || err?.code === '23505') {
+      return { ok: true }; // Already subscribed — treat as success
+    }
+    return { ok: false, error: err?.message ?? String(err) };
+  }
+}
+
+export async function incrementPostViews(slug: string): Promise<void> {
+  const supabase = await createClient();
+  const agencyId = await getCurrentAgencyId();
+
+  try {
+    await supabase.rpc('increment_post_views', { post_slug: slug, post_agency_id: agencyId });
+  } catch {
+    // Fire-and-forget — don't block page render
   }
 }

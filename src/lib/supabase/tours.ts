@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Tour } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -96,7 +97,7 @@ export async function addTour(
     images: any[];
   }
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // 1. Handle image uploads
@@ -160,7 +161,7 @@ export async function addTour(
 }
 
 export async function deleteTour(id: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const {
@@ -217,7 +218,7 @@ export async function deleteTour(id: string) {
 }
 
 export async function updateTour(id: string, formData: Omit<Tour, 'id'>) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // 1. Handle image uploads (similar logic as addTour, but consider existing images)

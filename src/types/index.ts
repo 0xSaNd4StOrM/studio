@@ -170,6 +170,8 @@ export type Post = {
   updatedAt: string; // ISO date string
   featuredImage: string;
   tags: string[];
+  isFeatured: boolean;
+  views: number;
 };
 
 export const browseCategoryIconKeys = [

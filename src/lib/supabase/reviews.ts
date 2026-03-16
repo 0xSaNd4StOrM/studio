@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { toCamelCase } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
@@ -104,7 +105,7 @@ export async function getReviews(statusFilter?: string): Promise<Review[]> {
 
 // ─── Admin: Update review status ───────────────────────────────────────────
 export async function updateReviewStatus(reviewId: string, status: 'approved' | 'rejected') {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase
@@ -125,7 +126,7 @@ export async function updateReviewStatus(reviewId: string, status: 'approved' | 
 
 // ─── Admin: Delete a review ────────────────────────────────────────────────
 export async function deleteReview(reviewId: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase

@@ -1,11 +1,20 @@
 import { notFound } from 'next/navigation';
-import { getPostBySlug } from '@/lib/supabase/blog';
+import { getPostBySlug, getRelatedPosts, incrementPostViews } from '@/lib/supabase/blog';
+import { getAgencySettings } from '@/lib/supabase/agency-content';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Calendar, Clock, User } from 'lucide-react';
+import {
+  SocialShareButtons,
+  TableOfContents,
+  AuthorBio,
+  RelatedPosts,
+  NewsletterForm,
+  BackToTopButton,
+} from '@/components/blog/blog-components';
 import type { Metadata } from 'next';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -17,6 +26,18 @@ function stripText(value: string) {
 function estimateReadingMinutes(text: string) {
   const words = stripText(text).split(' ').filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
+}
+
+/**
+ * Inject IDs into h2/h3 tags so the TOC links can scroll to them.
+ */
+function injectHeadingIds(html: string): string {
+  return html.replace(/<h([23])([^>]*)>(.*?)<\/h[23]>/gi, (match, level, attrs, content) => {
+    if (attrs.includes('id=')) return match;
+    const text = content.replace(/<[^>]+>/g, '').trim();
+    const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    return `<h${level}${attrs} id="${id}">${content}</h${level}>`;
+  });
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -60,19 +81,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPost({ params }: Props) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const [post, settings] = await Promise.all([getPostBySlug(slug), getAgencySettings()]);
 
   if (!post) {
     notFound();
   }
 
-  const paragraphs = post.content
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+  // Fire-and-forget view increment
+  incrementPostViews(slug);
+
+  const relatedPosts = await getRelatedPosts(slug, post.tags, 3);
+
+  const agencyName = settings?.data?.agencyName;
+  const contactEmail = settings?.data?.contactEmail;
+  const social = settings?.data?.socialMedia;
+
+  const htmlContent = injectHeadingIds(post.content);
+  const postUrl = `/blog/${slug}`;
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-8">
+    <div className="mx-auto w-full max-w-6xl space-y-8">
       <div className="flex items-center justify-between gap-4">
         <Button asChild variant="outline">
           <Link href="/blog">
@@ -82,12 +110,14 @@ export default async function BlogPost({ params }: Props) {
         </Button>
       </div>
 
-      <header className="space-y-4">
+      <header className="mx-auto max-w-3xl space-y-4">
         <div className="flex flex-wrap gap-2">
           {(post.tags ?? []).slice(0, 5).map((t) => (
-            <Badge key={t} variant="secondary">
-              {t}
-            </Badge>
+            <Link key={t} href={`/blog?tag=${encodeURIComponent(t)}`}>
+              <Badge variant="secondary" className="cursor-pointer">
+                {t}
+              </Badge>
+            </Link>
           ))}
         </div>
 
@@ -109,28 +139,57 @@ export default async function BlogPost({ params }: Props) {
             {estimateReadingMinutes(post.content)} min read
           </span>
         </div>
+
+        <SocialShareButtons url={postUrl} title={post.title} />
       </header>
 
-      <Card className="overflow-hidden rounded-3xl">
-        {post.featuredImage ? (
-          <div className="relative h-80 w-full">
-            <Image
-              src={post.featuredImage}
-              alt={post.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 768px"
-            />
-          </div>
-        ) : null}
-        <CardContent className="prose prose-neutral max-w-none dark:prose-invert">
-          {paragraphs.length > 0 ? (
-            paragraphs.map((p, idx) => <p key={idx}>{p}</p>)
-          ) : (
-            <p>{post.content}</p>
-          )}
-        </CardContent>
-      </Card>
+      {post.featuredImage && (
+        <div className="relative mx-auto h-80 max-w-3xl overflow-hidden rounded-3xl md:h-96">
+          <Image
+            src={post.featuredImage}
+            alt={post.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 768px"
+          />
+        </div>
+      )}
+
+      <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_240px]">
+        <Card className="overflow-hidden rounded-3xl">
+          <CardContent className="prose prose-neutral max-w-none dark:prose-invert">
+            <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+          </CardContent>
+        </Card>
+
+        <aside className="hidden lg:block">
+          <TableOfContents html={htmlContent} />
+        </aside>
+      </div>
+
+      {/* Mobile TOC shown above content */}
+      <div className="mx-auto max-w-3xl lg:hidden">
+        <TableOfContents html={htmlContent} />
+      </div>
+
+      <div className="mx-auto max-w-3xl space-y-8">
+        <SocialShareButtons url={postUrl} title={post.title} />
+
+        <AuthorBio
+          name={post.author}
+          agencyName={agencyName}
+          contactEmail={contactEmail}
+          social={social}
+        />
+
+        <NewsletterForm />
+      </div>
+
+      <div className="mx-auto max-w-5xl">
+        <RelatedPosts posts={relatedPosts} />
+      </div>
+
+      <BackToTopButton />
     </div>
   );
 }

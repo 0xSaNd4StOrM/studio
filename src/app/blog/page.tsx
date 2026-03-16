@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ArrowRight, Calendar, Clock, Search, User } from 'lucide-react';
 import { getAgencySettings, getPageMetadata } from '@/lib/supabase/agency-content';
+import { BackToTopButton } from '@/components/blog/blog-components';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -67,7 +68,11 @@ export default async function BlogListPage({
     (a, b) => a.localeCompare(b)
   );
 
-  const featured = filteredPosts.find((p) => !!p.featuredImage) ?? filteredPosts[0] ?? null;
+  const featured =
+    filteredPosts.find((p) => p.isFeatured) ??
+    filteredPosts.find((p) => !!p.featuredImage) ??
+    filteredPosts[0] ??
+    null;
   const rest = featured ? filteredPosts.filter((p) => p.slug !== featured.slug) : filteredPosts;
 
   return (
@@ -290,6 +295,8 @@ export default async function BlogListPage({
           </div>
         </div>
       )}
+
+      <BackToTopButton />
     </div>
   );
 }

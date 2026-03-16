@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { toCamelCase } from '@/lib/utils';
 import { revalidatePath } from 'next/cache';
@@ -56,7 +57,7 @@ export async function setDateAvailability(data: {
   availableSpots: number | null;
   isBlocked: boolean;
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // Upsert: insert or update if tour_id+date already exists
@@ -89,7 +90,7 @@ export async function bulkSetAvailability(data: {
     isBlocked: boolean;
   }[];
 }) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const rows = data.dates.map((d) => ({
@@ -115,7 +116,7 @@ export async function bulkSetAvailability(data: {
 
 // ─── Admin: Remove availability record (resets to default/unlimited) ────────
 export async function removeDateAvailability(tourId: string, date: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const { error } = await supabase

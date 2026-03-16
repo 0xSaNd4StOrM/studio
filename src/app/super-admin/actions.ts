@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { checkSuperAdmin } from './layout';
@@ -31,31 +31,51 @@ export async function createAgency(formData: FormData) {
     throw new Error('Name and Slug are required');
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from('agencies').insert({
-    name,
-    slug,
-    domain: domain || null,
-    status: 'active',
-    settings: {
-      tier,
-      modules: {
-        tours: moduleTours,
-        hotels: moduleHotels,
-        blog: moduleBlog,
-        upsell: moduleUpsell,
-        contact: moduleContact,
-        reviews: moduleReviews,
+  // Use service role to bypass RLS for agency creation
+  const supabase = createServiceRoleClient();
+  const { data: newAgency, error } = await supabase
+    .from('agencies')
+    .insert({
+      name,
+      slug,
+      domain: domain || null,
+      status: 'active',
+      settings: {
+        tier,
+        modules: {
+          tours: moduleTours,
+          hotels: moduleHotels,
+          blog: moduleBlog,
+          upsell: moduleUpsell,
+          contact: moduleContact,
+          reviews: moduleReviews,
+        },
+        contact: {
+          ...(contactEmail && { email: contactEmail }),
+          ...(contactPhone && { phone: contactPhone }),
+        },
       },
-      contact: {
-        ...(contactEmail && { email: contactEmail }),
-        ...(contactPhone && { phone: contactPhone }),
-      },
-    },
-  });
+    })
+    .select('id')
+    .single();
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  // If a contact email was provided and matches an existing auth user, add them as owner
+  if (contactEmail && newAgency?.id) {
+    const { data: authUsers } = await supabase.auth.admin.listUsers();
+    const ownerUser = authUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === contactEmail.toLowerCase()
+    );
+    if (ownerUser) {
+      await supabase.from('agency_users').insert({
+        user_id: ownerUser.id,
+        agency_id: newAgency.id,
+        role: 'owner',
+      });
+    }
   }
 
   await logAudit({
@@ -286,6 +306,8 @@ export async function suspendAgency(agencyId: string, reason: string) {
       status: 'suspended',
       suspended_reason: reason,
       suspended_at: new Date().toISOString(),
+      churned_at: new Date().toISOString(),
+      churn_reason: reason,
       settings: {
         ...currentSettings,
         modules: { ...currentModules, maintenance_mode: true },
@@ -326,6 +348,8 @@ export async function unsuspendAgency(agencyId: string) {
       status: 'active',
       suspended_reason: null,
       suspended_at: null,
+      churned_at: null,
+      churn_reason: null,
       settings: {
         ...currentSettings,
         modules: { ...currentModules, maintenance_mode: false },
@@ -431,6 +455,16 @@ export async function updateAgencyBilling(
   if (data.next_billing_date !== undefined)
     updatePayload.next_billing_date = data.next_billing_date || null;
   if (data.monthly_price !== undefined) updatePayload.monthly_price = data.monthly_price;
+
+  // Track churn when subscription is cancelled
+  if (data.subscription_status === 'cancelled') {
+    updatePayload.churned_at = new Date().toISOString();
+    updatePayload.churn_reason = 'Subscription cancelled';
+  } else if (data.subscription_status === 'active') {
+    // Clear churn when reactivated
+    updatePayload.churned_at = null;
+    updatePayload.churn_reason = null;
+  }
 
   const { error } = await supabase.from('agencies').update(updatePayload).eq('id', agencyId);
 

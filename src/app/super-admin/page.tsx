@@ -11,6 +11,13 @@ import { BroadcastEmailDialog } from '@/components/super-admin/broadcast-email-d
 import { GlobalRevenueChart } from '@/components/super-admin/global-revenue-chart';
 import { ActivityFeed } from '@/components/super-admin/activity-feed';
 import {
+  MRRCard,
+  ChurnCard,
+  BookingLeaderboard,
+  PlatformGrowthChart,
+  ExportCSVButton,
+} from '@/components/super-admin/platform-analytics';
+import {
   Building2,
   Activity,
   TrendingUp,
@@ -23,6 +30,10 @@ import {
   getPlatformStats,
   getAgencyHealthData,
   getGlobalRevenueData,
+  getChurnedAgencies,
+  getBookingLeaderboard,
+  getPlatformGrowthData,
+  getAgencyExportData,
 } from '@/lib/supabase/super-admin';
 import { getRecentActivity, getSuperAdminActions } from '@/lib/supabase/audit-log';
 
@@ -41,6 +52,10 @@ export default async function SuperAdminPage() {
     revenue90,
     recentActivity,
     adminActions,
+    churnedAgencies,
+    leaderboard,
+    growthData,
+    exportData,
   ] = await Promise.all([
     supabase.from('agencies').select('*').order('created_at', { ascending: false }),
     getAllBroadcasts(),
@@ -52,6 +67,10 @@ export default async function SuperAdminPage() {
     getGlobalRevenueData(90),
     getRecentActivity(30),
     getSuperAdminActions(30),
+    getChurnedAgencies(20),
+    getBookingLeaderboard(),
+    getPlatformGrowthData(),
+    getAgencyExportData(),
   ]);
 
   if (error) {
@@ -146,7 +165,7 @@ export default async function SuperAdminPage() {
       </div>
 
       {/* KPI Row 2 — Platform Metrics */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="border-zinc-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-500">Total Bookings</CardTitle>
@@ -173,6 +192,7 @@ export default async function SuperAdminPage() {
             <p className="text-xs text-zinc-500">All tenants combined</p>
           </CardContent>
         </Card>
+        <MRRCard stats={stats} />
         <Card
           className={`border-zinc-200 shadow-sm ${isOverridden ? 'bg-amber-50 border-amber-200' : ''}`}
         >
@@ -220,6 +240,12 @@ export default async function SuperAdminPage() {
             My Actions
           </TabsTrigger>
           <TabsTrigger
+            value="analytics"
+            className="data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900"
+          >
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger
             value="system"
             className="data-[state=active]:bg-zinc-100 data-[state=active]:text-zinc-900"
           >
@@ -251,6 +277,17 @@ export default async function SuperAdminPage() {
               <ActivityFeed entries={adminActions} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="flex justify-end">
+            <ExportCSVButton data={exportData} />
+          </div>
+          <PlatformGrowthChart data={growthData} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <BookingLeaderboard rows={leaderboard} />
+            <ChurnCard stats={stats} churnedAgencies={churnedAgencies} />
+          </div>
         </TabsContent>
 
         <TabsContent value="system" className="space-y-4">

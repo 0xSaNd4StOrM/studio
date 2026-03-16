@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { UpsellItem } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -117,7 +118,7 @@ export async function addUpsellItem(
     images?: any[];
   }
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const imageUrl = await handleImageUpload(formData.images);
@@ -154,7 +155,7 @@ export async function updateUpsellItem(
     imageUrl?: string;
   }
 ) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   const imageUrl = await handleImageUpload(formData.images, formData.imageUrl); // Pass existing URL
@@ -187,7 +188,7 @@ export async function updateUpsellItem(
 }
 
 export async function deleteUpsellItem(id: string) {
-  const supabase = await createClient();
+  const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
   // Optional: Delete image from storage if it exists

@@ -228,3 +228,20 @@ export async function markNotificationsRead(agencyId: string) {
     .eq('agency_id', agencyId)
     .eq('is_read', false);
 }
+
+export async function subscribeToNewsletter(
+  _prev: { ok: boolean; message: string },
+  formData: FormData
+): Promise<{ ok: boolean; message: string }> {
+  const email = (formData.get('email') as string)?.trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, message: 'Please enter a valid email address.' };
+  }
+
+  const { subscribeEmail } = await import('@/lib/supabase/blog');
+  const result = await subscribeEmail(email);
+  if (result.ok) {
+    return { ok: true, message: 'You have been subscribed! Check your inbox for updates.' };
+  }
+  return { ok: false, message: result.error ?? 'Something went wrong. Please try again.' };
+}
