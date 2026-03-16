@@ -1002,3 +1002,6 @@ _Started: March 3, 2026_
 | 🟡 Nice to have | H2.7 Map section               | Answers a guest's key question            |
 | 🔵 Future       | H3.8 Nearby attractions        | SEO + trust content                       |
 | 🔵 Future       | H2.8 Instagram grid            | Authenticity / social proof               |
+
+
+//test 1
