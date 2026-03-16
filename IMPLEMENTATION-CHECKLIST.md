@@ -1003,5 +1003,4 @@ _Started: March 3, 2026_
 | 🔵 Future       | H3.8 Nearby attractions        | SEO + trust content                       |
 | 🔵 Future       | H2.8 Instagram grid            | Authenticity / social proof               |
 
-
 //test 1

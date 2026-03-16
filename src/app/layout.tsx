@@ -57,12 +57,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const template = ensureTemplate(site?.titleTemplate || '', `%s | ${siteName}`);
   const description = site?.description?.trim() || '';
 
-  const keywords = site?.keywords
-    ? site.keywords
-        .split(',')
-        .map((k) => k.trim())
-        .filter(Boolean)
-    : undefined;
+  const keywords = (() => {
+    const kw = site?.keywords;
+    if (!kw) return undefined;
+    const arr = Array.isArray(kw) ? kw : kw.split(',');
+    return arr.map((k: string) => k.trim()).filter(Boolean);
+  })();
 
   const ogImageUrl = site?.ogImageUrl?.trim() || undefined;
   const twitterImageUrl = site?.twitterImageUrl?.trim() || ogImageUrl;

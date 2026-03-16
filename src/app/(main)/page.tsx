@@ -4,6 +4,7 @@ import { getPublicHotels, getPublicRoomTypesByHotelId } from '@/lib/supabase/hot
 import { createClient } from '@/lib/supabase/server';
 import HomePageClient from './home-client';
 import type { Post } from '@/types';
+import { toCamelCase } from '@/lib/utils';
 import {
   getAgencySettings,
   getHomePageContent,
@@ -33,10 +34,10 @@ export default async function HomePage() {
     .from('posts')
     .select('*')
     .eq('status', 'Published')
-    .order('createdAt', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(3);
 
-  const articles = (postsData as unknown as Post[]) || [];
+  const articles = (postsData as unknown as object[])?.map((p) => toCamelCase(p) as Post) ?? [];
 
   if (!homeContent) {
     return (

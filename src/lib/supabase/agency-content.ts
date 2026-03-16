@@ -540,12 +540,11 @@ export async function getPageMetadata(
   const description = seo?.description || defaults?.description || site?.description || '';
 
   const keywordsSource = seo?.keywords || site?.keywords;
-  const keywords = keywordsSource
-    ? keywordsSource
-        .split(',')
-        .map((k) => k.trim())
-        .filter(Boolean)
-    : undefined;
+  const keywords = (() => {
+    if (!keywordsSource) return undefined;
+    const arr = Array.isArray(keywordsSource) ? keywordsSource : keywordsSource.split(',');
+    return (arr as string[]).map((k) => k.trim()).filter(Boolean);
+  })();
 
   return {
     title,
