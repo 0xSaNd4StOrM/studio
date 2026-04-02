@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Tour } from '@/types';
 import { revalidatePath } from 'next/cache';
@@ -161,55 +161,16 @@ export async function addTour(
 }
 
 export async function deleteTour(id: string) {
+  // createAdminClient already verifies the user is authenticated and is an
+  // agency member before returning the service-role client.
   const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error('You must be signed in to delete tours.');
-  }
-
-  const allowedAdminEmailsRaw = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
-
-  if (allowedAdminEmailsRaw.trim()) {
-    const allowed = new Set(
-      allowedAdminEmailsRaw
-        .split(',')
-        .map((v) => v.trim().toLowerCase())
-        .filter(Boolean)
-    );
-
-    const email = (user.email || '').trim().toLowerCase();
-    if (!email || !allowed.has(email)) {
-      throw new Error('You are not authorized to delete tours.');
-    }
-  }
 
   const { error } = await supabase.from('tours').delete().eq('id', id).eq('agency_id', agencyId);
 
   if (error) {
     console.error('Error deleting tour:', error);
-    try {
-      const adminClient = createServiceRoleClient();
-      const { error: adminError } = await adminClient
-        .from('tours')
-        .delete()
-        .eq('id', id)
-        .eq('agency_id', agencyId);
-
-      if (adminError) {
-        console.error('Service role delete failed:', adminError);
-        throw new Error(adminError.message || 'Failed to delete tour.');
-      }
-    } catch (err) {
-      if (err instanceof Error) {
-        throw err;
-      }
-      throw new Error(error.message || 'Failed to delete tour.');
-    }
+    throw new Error(error.message || 'Failed to delete tour.');
   }
 
   revalidatePath('/admin/tours');

@@ -37,9 +37,11 @@ export function NewTourClient({ categories, destinations }: NewTourClientProps) 
       router.refresh();
     } catch (error) {
       console.error('Failed to save tour:', error);
+      const message =
+        error instanceof Error ? error.message : 'Failed to create tour. Please try again.';
       toast({
         title: 'Error',
-        description: 'Failed to create tour. Please try again.',
+        description: message,
         variant: 'destructive',
       });
     }
