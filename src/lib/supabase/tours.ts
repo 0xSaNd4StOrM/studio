@@ -153,11 +153,10 @@ export async function addTour(
     throw new Error('Failed to create tour.');
   }
 
-  // 4. Revalidate and redirect
+  // 4. Revalidate paths (redirect is handled by the client)
   revalidatePath('/admin/tours');
   revalidatePath('/'); // Revalidate homepage
   revalidatePath('/tours'); // Revalidate tours page
-  redirect('/admin/tours');
 }
 
 export async function deleteTour(id: string) {
