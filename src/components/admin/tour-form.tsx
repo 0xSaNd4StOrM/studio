@@ -47,7 +47,10 @@ import type { Tour } from '@/types';
 
 const priceTierSchema = z.object({
   minPeople: z.coerce.number().min(1, 'Min people is required'),
-  maxPeople: z.coerce.number().nullable(),
+  maxPeople: z.preprocess(
+    (val) => (val === undefined || val === null || val === '' ? null : val),
+    z.coerce.number().nullable()
+  ),
   pricePerAdult: z.coerce.number().min(0, 'Price must be positive'),
   pricePerChild: z.coerce.number().min(0, 'Price must be positive'),
 });
@@ -60,7 +63,7 @@ const itineraryItemSchema = z.object({
 const packageSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, 'Package name is required'),
-  description: z.string().optional(),
+  description: z.string().nullish(),
   priceTiers: z.array(priceTierSchema).min(1, 'At least one price tier is required.'),
 });
 

@@ -26,6 +26,12 @@ function ensureTourDefaults(tour: Tour): Tour {
     highlights: tour.highlights || [],
     includes: tour.includes || [],
     excludes: tour.excludes || [],
+    // Guard against null from DB columns — z.string().optional() rejects null
+    durationText: tour.durationText ?? '',
+    tourType: tour.tourType ?? '',
+    availabilityDescription: tour.availabilityDescription ?? '',
+    pickupAndDropoff: tour.pickupAndDropoff ?? '',
+    cancellationPolicy: tour.cancellationPolicy ?? '',
   };
 }
 
