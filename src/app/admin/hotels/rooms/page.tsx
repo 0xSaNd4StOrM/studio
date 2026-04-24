@@ -7,10 +7,12 @@ import { getHotels, getRoomTypesByHotelId } from '@/lib/supabase/hotels';
 import { PlusCircle } from 'lucide-react';
 
 export default async function AdminHotelRoomsPage() {
-  const hotels = await getHotels();
+  const hotels = await getHotels({ skipTranslation: true });
   const activeHotel = hotels[0] || null;
 
-  const roomTypes = activeHotel ? await getRoomTypesByHotelId(activeHotel.id) : [];
+  const roomTypes = activeHotel
+    ? await getRoomTypesByHotelId(activeHotel.id, { skipTranslation: true })
+    : [];
 
   return (
     <div className="space-y-6">

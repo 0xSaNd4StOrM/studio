@@ -5,10 +5,16 @@ import { getHotelBookings, getHotels, getRoomTypesByHotelId } from '@/lib/supaba
 import { BedDouble, Building2, Calendar, DollarSign } from 'lucide-react';
 
 export default async function AdminHotelsPage() {
-  const [hotels, bookings] = await Promise.all([getHotels(), getHotelBookings()]);
+  const [hotels, bookings] = await Promise.all([
+    getHotels({ skipTranslation: true }),
+    getHotelBookings(),
+  ]);
 
   const roomsByHotel = await Promise.all(
-    hotels.map(async (h) => ({ hotelId: h.id, rooms: await getRoomTypesByHotelId(h.id) }))
+    hotels.map(async (h) => ({
+      hotelId: h.id,
+      rooms: await getRoomTypesByHotelId(h.id, { skipTranslation: true }),
+    }))
   );
 
   const totalRoomTypes = roomsByHotel.reduce((sum, h) => sum + h.rooms.length, 0);

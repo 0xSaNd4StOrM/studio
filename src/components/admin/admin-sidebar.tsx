@@ -49,6 +49,7 @@ import type { User } from '@supabase/supabase-js';
 import { AgencySettings } from '@/types/agency';
 import { NotificationBell } from '@/components/admin/notification-bell';
 import type { AgencyNotification } from '@/lib/supabase/notifications';
+import { useAdminLanguage } from '@/hooks/use-admin-language';
 
 // const menuItems = [
 //   { href: "/admin/dashboard", label: "Dashboard", icon: Home },
@@ -67,23 +68,23 @@ import type { AgencyNotification } from '@/lib/supabase/notifications';
 //   { href: "/admin/settings", label: "Settings", icon: Settings },
 // ];
 
-const getPageTitle = (pathname: string) => {
-  if (pathname.startsWith('/admin/dashboard')) return 'Dashboard';
-  if (pathname.startsWith('/admin/tours')) return 'Tours';
-  if (pathname.startsWith('/admin/bookings')) return 'Bookings';
-  if (pathname.startsWith('/admin/hotels/bookings')) return 'Hotel Bookings';
-  if (pathname.startsWith('/admin/hotels/rooms')) return 'Room Types';
-  if (pathname.startsWith('/admin/hotels/availability')) return 'Availability & Rates';
-  if (pathname.startsWith('/admin/hotels')) return 'Hotels Dashboard';
-  if (pathname.startsWith('/admin/customers')) return 'Customers';
-  if (pathname.startsWith('/admin/blog')) return 'Blog';
-  if (pathname.startsWith('/admin/home-page-editor')) return 'Home Page Editor';
-  if (pathname.startsWith('/admin/upsell-items')) return 'Upsell Items';
-  if (pathname.startsWith('/admin/promotions')) return 'Promotions';
-  if (pathname.startsWith('/admin/reviews')) return 'Reviews';
-  if (pathname.startsWith('/admin/contact-messages')) return 'Contact Messages';
-  if (pathname.startsWith('/admin/settings')) return 'Settings';
-  return 'Admin';
+const getPageTitle = (pathname: string, t: (k: string) => string) => {
+  if (pathname.startsWith('/admin/dashboard')) return t('admin.dashboard');
+  if (pathname.startsWith('/admin/tours')) return t('admin.tours');
+  if (pathname.startsWith('/admin/hotels/bookings')) return t('admin.hotelBookings');
+  if (pathname.startsWith('/admin/hotels/rooms')) return t('admin.roomTypes');
+  if (pathname.startsWith('/admin/hotels/availability')) return t('admin.availabilityRates');
+  if (pathname.startsWith('/admin/hotels')) return t('admin.hotelsDashboard');
+  if (pathname.startsWith('/admin/bookings')) return t('admin.bookings');
+  if (pathname.startsWith('/admin/customers')) return t('admin.customers');
+  if (pathname.startsWith('/admin/blog')) return t('admin.blog');
+  if (pathname.startsWith('/admin/home-page-editor')) return t('admin.homePageEditor');
+  if (pathname.startsWith('/admin/upsell-items')) return t('admin.upsellItems');
+  if (pathname.startsWith('/admin/promotions')) return t('admin.promotions');
+  if (pathname.startsWith('/admin/reviews')) return t('admin.reviews');
+  if (pathname.startsWith('/admin/contact-messages')) return t('admin.contactMessages');
+  if (pathname.startsWith('/admin/settings')) return t('admin.settings');
+  return t('admin.admin');
 };
 
 export function AdminSidebar({
@@ -106,6 +107,7 @@ export function AdminSidebar({
   notifications?: AgencyNotification[];
 }) {
   const pathname = usePathname();
+  const { t } = useAdminLanguage();
 
   // Filter menu items based on settings.modules
   const modules = settings?.modules || {
@@ -119,56 +121,62 @@ export function AdminSidebar({
   // Menu items grouped by category
   const groups = [
     {
-      label: 'Overview',
-      items: [{ href: '/admin/dashboard', label: 'Dashboard', icon: Home }],
+      label: t('admin.overview'),
+      items: [{ href: '/admin/dashboard', label: t('admin.dashboard'), icon: Home }],
     },
     {
-      label: 'Management',
+      label: t('admin.management'),
       items: [
-        { href: '/admin/tours', label: 'Tours', icon: Globe },
-        { href: '/admin/bookings', label: 'Bookings', icon: Calendar },
-        { href: '/admin/customers', label: 'Customers', icon: Users },
-        { href: '/admin/reviews', label: 'Reviews', icon: Star },
+        { href: '/admin/tours', label: t('admin.tours'), icon: Globe },
+        { href: '/admin/bookings', label: t('admin.bookings'), icon: Calendar },
+        { href: '/admin/customers', label: t('admin.customers'), icon: Users },
+        { href: '/admin/reviews', label: t('admin.reviews'), icon: Star },
       ],
     },
     {
-      label: 'Hotels',
+      label: t('admin.hotels'),
       items: [
-        { href: '/admin/hotels', label: 'Hotels Dashboard', icon: Building2 },
-        { href: '/admin/hotels/rooms', label: 'Room Types', icon: LayoutDashboard },
-        { href: '/admin/hotels/availability', label: 'Availability', icon: Calendar },
-        { href: '/admin/hotels/bookings', label: 'Bookings', icon: Calendar },
+        { href: '/admin/hotels', label: t('admin.hotelsDashboard'), icon: Building2 },
+        { href: '/admin/hotels/rooms', label: t('admin.roomTypes'), icon: LayoutDashboard },
+        { href: '/admin/hotels/availability', label: t('admin.availability'), icon: Calendar },
+        { href: '/admin/hotels/bookings', label: t('admin.bookings'), icon: Calendar },
       ],
     },
     {
-      label: 'Content',
+      label: t('admin.content'),
       items: [
-        { href: '/admin/blog', label: 'Blog', icon: Newspaper },
-        { href: '/admin/home-page-editor', label: 'Home Page Editor', icon: LayoutDashboard },
-        { href: '/admin/upsell-items', label: 'Upsell Items', icon: Tag },
-        { href: '/admin/promotions', label: 'Promotions', icon: Percent },
+        { href: '/admin/blog', label: t('admin.blog'), icon: Newspaper },
+        {
+          href: '/admin/home-page-editor',
+          label: t('admin.homePageEditor'),
+          icon: LayoutDashboard,
+        },
+        { href: '/admin/upsell-items', label: t('admin.upsellItems'), icon: Tag },
+        { href: '/admin/promotions', label: t('admin.promotions'), icon: Percent },
       ],
     },
     {
-      label: 'System',
+      label: t('admin.system'),
       items: [
-        { href: '/admin/contact-messages', label: 'Contact Messages', icon: Mail },
-        { href: '/admin/settings', label: 'Settings', icon: Settings },
+        { href: '/admin/contact-messages', label: t('admin.contactMessages'), icon: Mail },
+        { href: '/admin/settings', label: t('admin.settings'), icon: Settings },
       ],
     },
   ];
 
-  const shouldShowItem = (label: string) => {
-    if (label === 'Blog' && modules.blog === false) return false;
-    if (label === 'Upsell Items' && modules.upsell === false) return false;
-    if (label === 'Contact Messages' && modules.contact === false) return false;
-    if (label === 'Reviews' && modules.reviews === false) return false;
-    if (label === 'Tours' && modules.tours === false) return false;
+  const shouldShowItem = (href: string) => {
+    if (href === '/admin/blog' && modules.blog === false) return false;
+    if (href === '/admin/upsell-items' && modules.upsell === false) return false;
+    if (href === '/admin/contact-messages' && modules.contact === false) return false;
+    if (href === '/admin/reviews' && modules.reviews === false) return false;
+    if (href === '/admin/tours' && modules.tours === false) return false;
     if (
-      (label === 'Hotels Dashboard' ||
-        label === 'Room Types' ||
-        label === 'Availability' ||
-        label === 'Bookings') &&
+      [
+        '/admin/hotels',
+        '/admin/hotels/rooms',
+        '/admin/hotels/availability',
+        '/admin/hotels/bookings',
+      ].includes(href) &&
       modules.hotels === false
     )
       return false;
@@ -183,13 +191,13 @@ export function AdminSidebar({
             <Logo />
             <div className="flex flex-col">
               <span className="font-headline text-lg font-semibold text-foreground">Tourista</span>
-              <span className="text-xs text-muted-foreground">Admin Panel</span>
+              <span className="text-xs text-muted-foreground">{t('admin.panel')}</span>
             </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
           {groups.map((group) => {
-            const visibleItems = group.items.filter((item) => shouldShowItem(item.label));
+            const visibleItems = group.items.filter((item) => shouldShowItem(item.href));
             if (visibleItems.length === 0) return null;
 
             return (
@@ -233,7 +241,7 @@ export function AdminSidebar({
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur-sm sm:h-16 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
             <SidebarTrigger className="md:hidden" />
-            <h1 className="truncate text-lg font-semibold">{getPageTitle(pathname)}</h1>
+            <h1 className="truncate text-lg font-semibold">{getPageTitle(pathname, t)}</h1>
           </div>
           <div className="flex items-center gap-2">
             {agencyId && (
@@ -257,7 +265,7 @@ export function AdminSidebar({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Admin</p>
+                    <p className="text-sm font-medium leading-none">{t('admin.adminUser')}</p>
                     <p className="text-xs leading-none text-muted-foreground truncate">
                       {user.email}
                     </p>
@@ -272,7 +280,7 @@ export function AdminSidebar({
                     className="cursor-pointer w-full flex items-center"
                   >
                     <MessageCircle className="mr-2 h-4 w-4" />
-                    <span>Support</span>
+                    <span>{t('admin.support')}</span>
                   </a>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -281,7 +289,7 @@ export function AdminSidebar({
                   className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign Out</span>
+                  <span>{t('admin.signOut')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

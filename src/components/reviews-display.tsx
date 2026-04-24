@@ -1,5 +1,8 @@
+'use client';
+
 import { Star } from 'lucide-react';
 import type { Review } from '@/types';
+import { useLanguage } from '@/hooks/use-language';
 
 interface ReviewsDisplayProps {
   reviews: Review[];
@@ -21,21 +24,24 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export function ReviewsDisplay({ reviews, title = 'Customer Reviews' }: ReviewsDisplayProps) {
+export function ReviewsDisplay({ reviews, title }: ReviewsDisplayProps) {
+  const { t, language } = useLanguage();
   if (reviews.length === 0) return null;
 
   const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+  const resolvedTitle = title ?? t('reviews.title');
+  const countLabel = reviews.length === 1 ? t('reviews.singular') : t('reviews.plural');
 
   return (
     <div className="space-y-6">
       {/* Header with average rating */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2 className="text-xl font-semibold">{resolvedTitle}</h2>
         <div className="flex items-center gap-2">
           <StarRating rating={Math.round(averageRating)} />
           <span className="text-sm font-medium">{averageRating.toFixed(1)}</span>
           <span className="text-sm text-muted-foreground">
-            ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+            ({reviews.length} {countLabel})
           </span>
         </div>
       </div>
@@ -53,7 +59,7 @@ export function ReviewsDisplay({ reviews, title = 'Customer Reviews' }: ReviewsD
                   <div>
                     <p className="text-sm font-medium">{review.customerName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleDateString('en-US', {
+                      {new Date(review.createdAt).toLocaleDateString(language || 'en', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',

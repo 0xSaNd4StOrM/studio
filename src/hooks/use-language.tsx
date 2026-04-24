@@ -1,8 +1,16 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { localeLoaders } from '@/locales';
 import type { TranslationMap } from '@/locales';
+
+const LOCALE_COOKIE = 'NEXT_LOCALE';
+
+function writeLocaleCookie(lang: string) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${LOCALE_COOKIE}=${lang}; path=/; max-age=31536000; samesite=lax`;
+}
 
 export type Language = string;
 
@@ -35,6 +43,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [translations, setTranslations] = useState<Partial<TranslationMap>>({});
   // fallback (English) — loaded once on mount
   const [fallback, setFallback] = useState<Partial<TranslationMap>>({});
+  const router = useRouter();
+  const prevLanguageRef = useRef<Language | null>(null);
 
   // Load English first so t() never returns bare keys
   useEffect(() => {
@@ -45,12 +55,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Restore language preference from localStorage
+  // Restore language preference from localStorage, and ensure NEXT_LOCALE cookie
+  // is populated on first mount so server components get the right locale even
+  // for returning users who had a saved preference before this change landed.
   useEffect(() => {
     const saved = localStorage.getItem('language');
-    if (saved && localeLoaders[saved]) {
-      setLanguageState(saved);
+    const initial = saved && localeLoaders[saved] ? saved : 'en';
+    if (initial !== 'en') {
+      setLanguageState(initial);
     }
+    writeLocaleCookie(initial);
+    prevLanguageRef.current = initial;
   }, []);
 
   // Load locale file whenever language changes
@@ -60,7 +75,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('language', language);
     document.documentElement.dir = RTL_LANGUAGES.has(language) ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
-  }, [language]);
+    writeLocaleCookie(language);
+
+    // Only refresh server components when the user actively switches locales
+    // (not on initial mount, where prevLanguageRef matches `language`).
+    const prev = prevLanguageRef.current;
+    if (prev !== null && prev !== language) {
+      router.refresh();
+    }
+    prevLanguageRef.current = language;
+  }, [language, router]);
 
   const setLanguage = useCallback((lang: Language) => {
     if (localeLoaders[lang]) {

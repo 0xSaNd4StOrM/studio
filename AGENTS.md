@@ -84,6 +84,8 @@ Known env keys referenced in code:
   - `OPENROUTER_FREE_MODELS` (optional CSV model list)
   - `OPENROUTER_HTTP_REFERER` (optional)
   - `OPENROUTER_APP_NAME` (optional)
+- Translation (Lingva):
+  - `LINGVA_BASE_URL` (optional; defaults to `https://lingva-translatevercel.vercel.app`)
 
 ## Commands
 

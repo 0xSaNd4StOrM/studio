@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
+import { Inter, Playfair_Display, Cairo } from 'next/font/google';
 import './globals.css';
 import { CartProvider } from '@/hooks/use-cart';
 import { WishlistProvider } from '@/hooks/use-wishlist';
@@ -11,6 +11,11 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
+  display: 'swap',
+});
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  variable: '--font-cairo',
   display: 'swap',
 });
 
@@ -131,7 +136,10 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${playfair.variable}`} suppressHydrationWarning={true}>
+      <body
+        className={`${inter.variable} ${playfair.variable} ${cairo.variable}`}
+        suppressHydrationWarning={true}
+      >
         <LanguageProvider>
           <CurrencyProvider defaultCurrency={defaultCurrency}>
             <WishlistProvider>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguage } from '@/hooks/use-language';
 
 interface WhatsAppChatButtonProps {
   phone: string;
@@ -9,6 +10,8 @@ interface WhatsAppChatButtonProps {
 
 export function WhatsAppChatButton({ phone, message }: WhatsAppChatButtonProps) {
   const [hovered, setHovered] = useState(false);
+  const { t } = useLanguage();
+  const chatLabel = t('whatsapp.chatWithUs');
 
   // Strip everything except digits and leading +
   const cleanPhone = phone.replace(/[^\d+]/g, '');
@@ -22,7 +25,7 @@ export function WhatsAppChatButton({ phone, message }: WhatsAppChatButtonProps) 
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Chat with us on WhatsApp"
+      aria-label={chatLabel}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className="fixed bottom-6 right-6 z-50 flex items-center gap-3 group"
@@ -36,7 +39,7 @@ export function WhatsAppChatButton({ phone, message }: WhatsAppChatButtonProps) 
           ${hovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'}
         `}
       >
-        Chat with us
+        {chatLabel}
       </span>
 
       {/* Button */}

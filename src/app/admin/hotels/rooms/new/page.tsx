@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RoomTypeForm } from '../room-type-form';
 
 export default async function NewRoomTypePage() {
-  const hotels = await getHotels();
+  const hotels = await getHotels({ skipTranslation: true });
   const activeHotel = hotels[0] || null;
 
   const createRoomType = async (formData: FormData) => {

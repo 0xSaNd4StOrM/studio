@@ -7,6 +7,52 @@ import { toCamelCase } from '@/lib/utils';
 import type { Hotel, HotelBooking, RoomInventory, RoomType } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { getPublicTargetLocale } from '@/lib/translation/get-locale';
+import { translateObject, translateObjects } from '@/lib/translation/translate-object';
+
+const HOTEL_TRANSLATABLE_FIELDS = ['name', 'description'] as const;
+const ROOM_TYPE_TRANSLATABLE_FIELDS = [
+  'name',
+  'description',
+  'view',
+  'cancellationPolicy',
+  'amenities[]',
+  'services[]',
+  'highlights[]',
+] as const;
+
+type SkipOpt = { skipTranslation?: boolean };
+
+async function maybeTranslateHotels(hotels: Hotel[], skip?: boolean): Promise<Hotel[]> {
+  if (skip) return hotels;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return hotels;
+  return translateObjects(hotels, HOTEL_TRANSLATABLE_FIELDS, target);
+}
+
+async function maybeTranslateHotel(hotel: Hotel | null, skip?: boolean): Promise<Hotel | null> {
+  if (!hotel || skip) return hotel;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return hotel;
+  return translateObject(hotel, HOTEL_TRANSLATABLE_FIELDS, target);
+}
+
+async function maybeTranslateRoomTypes(rooms: RoomType[], skip?: boolean): Promise<RoomType[]> {
+  if (skip) return rooms;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return rooms;
+  return translateObjects(rooms, ROOM_TYPE_TRANSLATABLE_FIELDS, target);
+}
+
+async function maybeTranslateRoomType(
+  room: RoomType | null,
+  skip?: boolean
+): Promise<RoomType | null> {
+  if (!room || skip) return room;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return room;
+  return translateObject(room, ROOM_TYPE_TRANSLATABLE_FIELDS, target);
+}
 
 function slugify(value: string) {
   return value
@@ -47,7 +93,7 @@ async function uploadRoomImages(params: {
   return imageUrls;
 }
 
-export async function getHotels(): Promise<Hotel[]> {
+export async function getHotels(options: SkipOpt = {}): Promise<Hotel[]> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -61,10 +107,11 @@ export async function getHotels(): Promise<Hotel[]> {
     throw error;
   }
 
-  return (data || []).map((row) => toCamelCase(row) as Hotel);
+  const hotels = (data || []).map((row) => toCamelCase(row) as Hotel);
+  return maybeTranslateHotels(hotels, options.skipTranslation);
 }
 
-export async function getPublicHotels(): Promise<Hotel[]> {
+export async function getPublicHotels(options: SkipOpt = {}): Promise<Hotel[]> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -79,10 +126,11 @@ export async function getPublicHotels(): Promise<Hotel[]> {
     throw error;
   }
 
-  return (data || []).map((row) => toCamelCase(row) as Hotel);
+  const hotels = (data || []).map((row) => toCamelCase(row) as Hotel);
+  return maybeTranslateHotels(hotels, options.skipTranslation);
 }
 
-export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
+export async function getHotelBySlug(slug: string, options: SkipOpt = {}): Promise<Hotel | null> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -98,10 +146,13 @@ export async function getHotelBySlug(slug: string): Promise<Hotel | null> {
   }
 
   if (!data) return null;
-  return toCamelCase(data) as Hotel;
+  return maybeTranslateHotel(toCamelCase(data) as Hotel, options.skipTranslation);
 }
 
-export async function getPublicHotelBySlug(slug: string): Promise<Hotel | null> {
+export async function getPublicHotelBySlug(
+  slug: string,
+  options: SkipOpt = {}
+): Promise<Hotel | null> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -118,10 +169,13 @@ export async function getPublicHotelBySlug(slug: string): Promise<Hotel | null> 
   }
 
   if (!data) return null;
-  return toCamelCase(data) as Hotel;
+  return maybeTranslateHotel(toCamelCase(data) as Hotel, options.skipTranslation);
 }
 
-export async function getRoomTypesByHotelId(hotelId: string): Promise<RoomType[]> {
+export async function getRoomTypesByHotelId(
+  hotelId: string,
+  options: SkipOpt = {}
+): Promise<RoomType[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -134,10 +188,14 @@ export async function getRoomTypesByHotelId(hotelId: string): Promise<RoomType[]
     throw error;
   }
 
-  return (data || []).map((row) => toCamelCase(row) as RoomType);
+  const rooms = (data || []).map((row) => toCamelCase(row) as RoomType);
+  return maybeTranslateRoomTypes(rooms, options.skipTranslation);
 }
 
-export async function getPublicRoomTypesByHotelId(hotelId: string): Promise<RoomType[]> {
+export async function getPublicRoomTypesByHotelId(
+  hotelId: string,
+  options: SkipOpt = {}
+): Promise<RoomType[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -151,12 +209,14 @@ export async function getPublicRoomTypesByHotelId(hotelId: string): Promise<Room
     throw error;
   }
 
-  return (data || []).map((row) => toCamelCase(row) as RoomType);
+  const rooms = (data || []).map((row) => toCamelCase(row) as RoomType);
+  return maybeTranslateRoomTypes(rooms, options.skipTranslation);
 }
 
 export async function getRoomTypeBySlug(params: {
   hotelId: string;
   roomSlug: string;
+  skipTranslation?: boolean;
 }): Promise<RoomType | null> {
   const supabase = await createClient();
 
@@ -172,7 +232,7 @@ export async function getRoomTypeBySlug(params: {
   }
 
   if (!data) return null;
-  return toCamelCase(data) as RoomType;
+  return maybeTranslateRoomType(toCamelCase(data) as RoomType, params.skipTranslation);
 }
 
 export async function getRoomInventory(params: {

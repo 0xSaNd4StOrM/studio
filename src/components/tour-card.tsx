@@ -133,7 +133,7 @@ export function TourCard({ tour }: TourCardProps) {
           </div>
           <Button asChild variant="outline" className="shrink-0">
             <Link href={`/tours/${tour.slug}`}>
-              Details <ArrowRight className="ml-2 h-4 w-4" />
+              {t('tours.details')} <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
         </div>

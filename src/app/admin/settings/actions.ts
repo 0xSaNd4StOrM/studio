@@ -4,7 +4,7 @@ import { sendEmail } from '@/lib/email';
 import { getAgencySettings } from '@/lib/supabase/agency-content';
 
 export async function sendTestEmail(): Promise<{ ok: boolean; error?: string }> {
-  const settings = await getAgencySettings();
+  const settings = await getAgencySettings({ skipTranslation: true });
   const agencyData = settings?.data;
   const emailSettings = agencyData?.emailSettings;
   const to = agencyData?.contactEmail;

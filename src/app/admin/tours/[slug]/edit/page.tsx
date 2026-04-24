@@ -11,8 +11,8 @@ export default async function EditTourPage({
   }>;
 }) {
   const { slug } = await params;
-  const tour = await getTourBySlug(slug);
-  const settings = await getAgencySettings();
+  const tour = await getTourBySlug(slug, { skipTranslation: true });
+  const settings = await getAgencySettings({ skipTranslation: true });
 
   if (!tour) {
     notFound();

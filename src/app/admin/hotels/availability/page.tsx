@@ -48,9 +48,11 @@ export default async function AdminHotelAvailabilityPage({
   const from = fromParam && isValidISODate(fromParam) ? fromParam : defaultFrom;
   const to = toParam && isValidISODate(toParam) ? toParam : defaultTo;
 
-  const hotels = await getHotels();
+  const hotels = await getHotels({ skipTranslation: true });
   const activeHotel = hotels[0] || null;
-  const roomTypes = activeHotel ? await getRoomTypesByHotelId(activeHotel.id) : [];
+  const roomTypes = activeHotel
+    ? await getRoomTypesByHotelId(activeHotel.id, { skipTranslation: true })
+    : [];
   const roomTypeIdParam = typeof sp.roomTypeId === 'string' ? sp.roomTypeId : undefined;
   const selectedRoomTypeId =
     roomTypeIdParam && roomTypes.some((rt) => rt.id === roomTypeIdParam)

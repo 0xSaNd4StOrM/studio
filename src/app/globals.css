@@ -57,5 +57,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, sans-serif;
+  }
+  /* Arabic / RTL: switch to Cairo which supports Arabic script */
+  [dir='rtl'] body {
+    font-family: var(--font-cairo), system-ui, sans-serif;
   }
 }

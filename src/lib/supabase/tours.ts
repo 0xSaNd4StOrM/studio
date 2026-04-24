@@ -6,12 +6,33 @@ import type { Tour } from '@/types';
 import { revalidatePath } from 'next/cache';
 import { toCamelCase } from '@/lib/utils';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
+import { getPublicTargetLocale } from '@/lib/translation/get-locale';
+import { translateObject, translateObjects } from '@/lib/translation/translate-object';
+
+const TOUR_TRANSLATABLE_FIELDS = [
+  'name',
+  'destination',
+  'description',
+  'durationText',
+  'tourType',
+  'availabilityDescription',
+  'pickupAndDropoff',
+  'cancellationPolicy',
+  'highlights[]',
+  'includes[]',
+  'excludes[]',
+  'itinerary[].activity',
+  'packages[].name',
+  'packages[].description',
+  'type[]',
+] as const;
 
 type GetToursOptions = {
   q?: string;
   destination?: string;
   type?: string; // matches tour categories (tour.type array)
   limit?: number;
+  skipTranslation?: boolean;
 };
 
 function ensureTourDefaults(tour: Tour): Tour {
@@ -35,7 +56,7 @@ function ensureTourDefaults(tour: Tour): Tour {
 }
 
 export async function getTours(options: GetToursOptions = {}): Promise<Tour[]> {
-  const { q, destination, type, limit } = options;
+  const { q, destination, type, limit, skipTranslation } = options;
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -70,10 +91,18 @@ export async function getTours(options: GetToursOptions = {}): Promise<Tour[]> {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map((item) => ensureTourDefaults(toCamelCase(item) as Tour));
+  const tours = (data as any[]).map((item) => ensureTourDefaults(toCamelCase(item) as Tour));
+
+  if (skipTranslation) return tours;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return tours;
+  return translateObjects(tours, TOUR_TRANSLATABLE_FIELDS, target);
 }
 
-export async function getTourBySlug(slug: string): Promise<Tour | null> {
+export async function getTourBySlug(
+  slug: string,
+  options: { skipTranslation?: boolean } = {}
+): Promise<Tour | null> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -93,7 +122,11 @@ export async function getTourBySlug(slug: string): Promise<Tour | null> {
     return null;
   }
 
-  return ensureTourDefaults(toCamelCase(data) as Tour);
+  const tour = ensureTourDefaults(toCamelCase(data) as Tour);
+  if (options.skipTranslation) return tour;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return tour;
+  return translateObject(tour, TOUR_TRANSLATABLE_FIELDS, target);
 }
 
 export async function addTour(

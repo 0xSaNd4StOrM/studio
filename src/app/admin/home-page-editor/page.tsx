@@ -4,7 +4,7 @@ import { getHomePageContent } from '@/lib/supabase/agency-content';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePageEditor() {
-  const content = await getHomePageContent();
+  const content = await getHomePageContent({ skipTranslation: true });
 
   return (
     <div className="space-y-6">

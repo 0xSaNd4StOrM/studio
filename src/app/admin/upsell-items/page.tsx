@@ -7,7 +7,7 @@ import { UpsellItemsClient } from './upsell-items-client';
 export const dynamic = 'force-dynamic';
 
 export default async function UpsellItemsPage() {
-  const upsellItems = await getUpsellItems();
+  const upsellItems = await getUpsellItems({ skipTranslation: true });
 
   return (
     <div className="space-y-6">

@@ -6,7 +6,7 @@ import { PlusCircle, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function ToursPage() {
-  const tours = await getTours();
+  const tours = await getTours({ skipTranslation: true });
 
   return (
     <div className="space-y-6">

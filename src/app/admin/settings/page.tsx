@@ -63,6 +63,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { generateSeoAssistAction, type SeoAssistResult } from '@/app/actions';
 import { currencies } from '@/hooks/use-currency';
+import { languages } from '@/hooks/use-language';
+import { useAdminLanguage } from '@/hooks/use-admin-language';
 
 const formSchema = z
   .object({
@@ -210,6 +212,7 @@ const formSchema = z
       .default({ tours: true, hotels: true, blog: true }),
     singleHotelMode: z.boolean().default(false),
     defaultCurrency: z.string().optional(),
+    adminLanguage: z.string().optional(),
     emailSettings: z
       .object({
         resendApiKey: z.string().optional(),
@@ -266,6 +269,7 @@ export default function SettingsPage() {
   const [loadedSettingsData, setLoadedSettingsData] = useState<AgencySettingsData | null>(null);
   const [testEmailPending, setTestEmailPending] = useState(false);
   const { toast } = useToast();
+  const { setAdminLanguage } = useAdminLanguage();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -328,6 +332,7 @@ export default function SettingsPage() {
       },
       singleHotelMode: false,
       defaultCurrency: 'USD',
+      adminLanguage: 'en',
       emailSettings: {
         resendApiKey: '',
         fromName: '',
@@ -357,7 +362,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     async function loadSettings() {
-      const data = await getAgencySettings();
+      const data = await getAgencySettings({ skipTranslation: true });
 
       if (data) {
         const settingsData = (data.data ?? {}) as AgencySettingsData;
@@ -434,6 +439,7 @@ export default function SettingsPage() {
           },
           singleHotelMode: settingsData.singleHotelMode ?? false,
           defaultCurrency: settingsData.defaultCurrency ?? 'USD',
+          adminLanguage: settingsData.adminLanguage ?? 'en',
           emailSettings: {
             resendApiKey: settingsData.emailSettings?.resendApiKey ?? '',
             fromName: settingsData.emailSettings?.fromName ?? '',
@@ -790,6 +796,7 @@ export default function SettingsPage() {
       modules: values.modules,
       singleHotelMode: values.singleHotelMode,
       defaultCurrency: values.defaultCurrency ?? 'USD',
+      adminLanguage: values.adminLanguage ?? 'en',
       emailSettings: values.emailSettings
         ? {
             resendApiKey: values.emailSettings.resendApiKey?.trim() || undefined,
@@ -802,6 +809,8 @@ export default function SettingsPage() {
 
     try {
       await updateAgencySettings(nextSettingsData, logoUrl, faviconUrl);
+      // Sync admin language in the client context immediately
+      if (values.adminLanguage) setAdminLanguage(values.adminLanguage);
       toast({
         title: 'Settings saved',
         description: 'Your changes have been applied successfully.',
@@ -2065,6 +2074,46 @@ export default function SettingsPage() {
                     </Select>
                     <FormDescription>
                       Prices across the website will display in this currency by default.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* ── Admin Interface Language ── */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Interface Language</CardTitle>
+              <CardDescription>
+                Choose the language used in the admin dashboard and management panels.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="adminLanguage"
+                render={({ field }) => (
+                  <FormItem className="max-w-xs">
+                    <FormLabel>Admin Language</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? 'en'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {languages.map((l) => (
+                          <SelectItem key={l.code} value={l.code}>
+                            {l.flag} {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This only affects the admin panel UI. The public site language is chosen by
+                      visitors.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

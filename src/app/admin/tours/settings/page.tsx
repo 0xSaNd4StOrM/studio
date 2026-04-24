@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function TourSettingsPage() {
-  const settings = await getAgencySettings();
+  const settings = await getAgencySettings({ skipTranslation: true });
 
   return <SettingsClient initialSettings={settings?.data || null} />;
 }

@@ -6,6 +6,93 @@ import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { HomeContent } from '@/types';
 import { revalidatePath } from 'next/cache';
 import type { Metadata } from 'next';
+import { getPublicTargetLocale } from '@/lib/translation/get-locale';
+import { translateObject } from '@/lib/translation/translate-object';
+
+const HOME_CONTENT_TRANSLATABLE_FIELDS = [
+  'hero.title',
+  'hero.subtitle',
+  'hero.imageAlt',
+  'hero.bookDirectBadge',
+  'browseCategory.title',
+  'browseCategory.subtitle',
+  'browseCategory.categories[].label',
+  'whyChooseUs.pretitle',
+  'whyChooseUs.title',
+  'whyChooseUs.imageAlt',
+  'whyChooseUs.badgeValue',
+  'whyChooseUs.badgeLabel',
+  'whyChooseUs.feature1.title',
+  'whyChooseUs.feature1.description',
+  'whyChooseUs.feature2.title',
+  'whyChooseUs.feature2.description',
+  'whyChooseUs.feature3.title',
+  'whyChooseUs.feature3.description',
+  'popularDestinations.pretitle',
+  'popularDestinations.title',
+  'discountBanners.banner1.title',
+  'discountBanners.banner1.description',
+  'discountBanners.banner1.buttonText',
+  'discountBanners.banner2.title',
+  'discountBanners.banner2.description',
+  'discountBanners.banner2.buttonText',
+  'lastMinuteOffers.pretitle',
+  'lastMinuteOffers.title',
+  'videoSection.pretitle',
+  'videoSection.title',
+  'videoSection.button1Text',
+  'videoSection.button2Text',
+  'newsSection.pretitle',
+  'newsSection.title',
+  'hotelFeatures.title',
+  'hotelFeatures.subtitle',
+  'hotelFeatures.features[].title',
+  'hotelFeatures.features[].description',
+  'featuredRooms.title',
+  'featuredRooms.subtitle',
+  'hotelStory.title',
+  'hotelStory.description',
+  'hotelStory.imageAlt',
+  'hotelStory.buttonText',
+  'roomsSection.title',
+  'roomsSection.subtitle',
+  'amenitiesSection.title',
+  'amenitiesSection.subtitle',
+  'gallerySection.title',
+  'gallerySection.subtitle',
+  'whyBookDirect.title',
+  'whyBookDirect.subtitle',
+  'whyBookDirect.benefits[].title',
+  'whyBookDirect.benefits[].description',
+  'locationSection.title',
+  'locationSection.subtitle',
+  'locationSection.address',
+  'socialSection.title',
+  'socialSection.subtitle',
+  'seasonalPackagesSection.title',
+  'seasonalPackagesSection.subtitle',
+  'seasonalPackagesSection.packages[].title',
+  'seasonalPackagesSection.packages[].description',
+  'seasonalPackagesSection.packages[].buttonText',
+  'nearbyAttractionsSection.title',
+  'nearbyAttractionsSection.subtitle',
+  'nearbyAttractionsSection.attractions[].name',
+  'nearbyAttractionsSection.attractions[].category',
+  'testimonials[].name',
+  'testimonials[].role',
+  'testimonials[].content',
+  'testimonials[].text',
+] as const;
+
+const AGENCY_SETTINGS_TRANSLATABLE_FIELDS = ['tagline', 'aboutUs', 'navLinks[].label'] as const;
+
+export async function translateHomeContent(
+  home: HomeContent,
+  targetLang: string
+): Promise<HomeContent> {
+  if (targetLang === 'en') return home;
+  return translateObject(home, HOME_CONTENT_TRANSLATABLE_FIELDS, targetLang);
+}
 
 export type PageSeoSettings = {
   title?: string;
@@ -118,6 +205,8 @@ export type AgencySettingsData = {
   };
   /** Default display currency for all public-facing price displays */
   defaultCurrency?: string;
+  /** Language code for the admin panel interface (e.g. 'en', 'ar', 'fr') */
+  adminLanguage?: string;
 };
 
 export type TourTaxonomyType = 'category' | 'destination';
@@ -188,7 +277,7 @@ export async function getTourTaxonomy(type: TourTaxonomyType): Promise<string[]>
     .filter(Boolean);
 }
 
-export async function getAgencySettings() {
+export async function getAgencySettings(options: { skipTranslation?: boolean } = {}) {
   const agencyId = await getCurrentAgencyId();
 
   const [row, tourCategories, tourDestinations] = await Promise.all([
@@ -217,12 +306,21 @@ export async function getAgencySettings() {
     seo: mergedSeo,
   };
 
+  let finalData: AgencySettingsData = {
+    ...mergedData,
+    tourCategories,
+    tourDestinations,
+  };
+
+  if (!options.skipTranslation) {
+    const target = await getPublicTargetLocale();
+    if (target !== 'en') {
+      finalData = await translateObject(finalData, AGENCY_SETTINGS_TRANSLATABLE_FIELDS, target);
+    }
+  }
+
   return {
-    data: {
-      ...mergedData,
-      tourCategories,
-      tourDestinations,
-    } as AgencySettingsData,
+    data: finalData,
     logo_url: row?.logo_url ?? null,
     favicon_url: rowFaviconUrl,
     agency_id: row?.agency_id ?? agencyId,
@@ -478,7 +576,7 @@ export async function updateTourTaxonomy(input: { categories: string[]; destinat
   revalidatePath('/admin/tours/settings');
 }
 
-export async function getHomePageContent() {
+export async function getHomePageContent(options: { skipTranslation?: boolean } = {}) {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -493,14 +591,19 @@ export async function getHomePageContent() {
     return null;
   }
 
-  return data ? (data.data as HomeContent) : null;
+  if (!data) return null;
+  const home = data.data as HomeContent;
+  if (options.skipTranslation) return home;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return home;
+  return translateHomeContent(home, target);
 }
 
 export async function updateHomePageContent(content: HomeContent) {
   const supabase = await createAdminClient();
   const agencyId = await getCurrentAgencyId();
 
-  const existing = await getHomePageContent();
+  const existing = await getHomePageContent({ skipTranslation: true });
 
   const payload = {
     data: content,

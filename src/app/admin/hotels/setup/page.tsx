@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { createHotelProfile, getHotels, updateHotelProfile } from '@/lib/supabase/hotels';
 
 export default async function SetupHotelPage() {
-  const hotels = await getHotels();
+  const hotels = await getHotels({ skipTranslation: true });
   const hotel = hotels[0] || null;
 
   const saveHotel = async (formData: FormData) => {

@@ -4,6 +4,10 @@ import { createClient } from './server';
 import { createAdminClient } from '@/lib/supabase/agency-users';
 import type { Post } from '@/types';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
+import { getPublicTargetLocale } from '@/lib/translation/get-locale';
+import { translateObject, translateObjects } from '@/lib/translation/translate-object';
+
+const POST_TRANSLATABLE_FIELDS = ['title', 'content', 'tags[]'] as const;
 
 type DbPost = {
   id: string;
@@ -40,7 +44,7 @@ function toPost(row: DbPost): Post {
 const POST_SELECT =
   'id, slug, title, content, author, status, created_at, updated_at, featured_image, tags, is_featured, views';
 
-export async function getPosts(): Promise<Post[]> {
+export async function getPosts(options: { skipTranslation?: boolean } = {}): Promise<Post[]> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -57,14 +61,21 @@ export async function getPosts(): Promise<Post[]> {
       return [];
     }
 
-    return (data || []).map(toPost);
+    const posts = (data || []).map(toPost);
+    if (options.skipTranslation) return posts;
+    const target = await getPublicTargetLocale();
+    if (target === 'en') return posts;
+    return translateObjects(posts, POST_TRANSLATABLE_FIELDS, target);
   } catch (err) {
     console.error('Unexpected error fetching posts:', err);
     return [];
   }
 }
 
-export async function getPostBySlug(slug: string): Promise<Post | null> {
+export async function getPostBySlug(
+  slug: string,
+  options: { skipTranslation?: boolean } = {}
+): Promise<Post | null> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -82,7 +93,11 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
     }
 
     if (!data) return null;
-    return toPost(data as DbPost);
+    const post = toPost(data as DbPost);
+    if (options.skipTranslation) return post;
+    const target = await getPublicTargetLocale();
+    if (target === 'en') return post;
+    return translateObject(post, POST_TRANSLATABLE_FIELDS, target);
   } catch (err) {
     console.error('Unexpected error fetching post by slug:', err);
     return null;
@@ -143,7 +158,8 @@ export async function deletePostBySlug(slug: string): Promise<{ ok: boolean; err
 export async function getRelatedPosts(
   currentSlug: string,
   tags: string[],
-  limit = 3
+  limit = 3,
+  options: { skipTranslation?: boolean } = {}
 ): Promise<Post[]> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
@@ -169,7 +185,11 @@ export async function getRelatedPosts(
     });
     scored.sort((a, b) => b.score - a.score || 0);
 
-    return scored.slice(0, limit).map((s) => s.post);
+    const related = scored.slice(0, limit).map((s) => s.post);
+    if (options.skipTranslation) return related;
+    const target = await getPublicTargetLocale();
+    if (target === 'en') return related;
+    return translateObjects(related, POST_TRANSLATABLE_FIELDS, target);
   } catch {
     return [];
   }

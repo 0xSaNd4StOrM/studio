@@ -10,6 +10,8 @@ import { recordAdminLogin } from '@/lib/supabase/super-admin';
 import { getUnreadNotificationCount, getNotifications } from '@/lib/supabase/notifications';
 import { checkAgencyAccess } from '@/lib/supabase/agency-users';
 import { redirect } from 'next/navigation';
+import { getAgencySettings } from '@/lib/supabase/agency-content';
+import { AdminLanguageProvider } from '@/hooks/use-admin-language';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -51,6 +53,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const settings = agency?.settings || {};
 
+  // Fetch admin language preference alongside other async work
+  let defaultAdminLanguage = 'en';
+  try {
+    const agencySettings = await getAgencySettings({ skipTranslation: true });
+    defaultAdminLanguage = agencySettings?.data?.adminLanguage ?? 'en';
+  } catch {
+    // proceed with English
+  }
+
   // Fetch pending count + notifications in parallel
   const [pendingBookingsCount, [unreadCount, notifications]] = await Promise.all([
     getPendingBookingsCount(),
@@ -65,19 +76,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminLayoutShell
-      user={user}
-      settings={settings}
-      pendingBookingsCount={pendingBookingsCount}
-      agencyId={agency?.id}
-      unreadNotificationCount={unreadCount}
-      notifications={notifications}
-    >
-      <div className="w-full">
-        <ImpersonationBanner />
-        <BroadcastBanner agencyTier={settings?.tier} agencyStatus={agency?.status} />
-        <Suspense>{children}</Suspense>
-      </div>
-    </AdminLayoutShell>
+    <AdminLanguageProvider defaultAdminLanguage={defaultAdminLanguage}>
+      <AdminLayoutShell
+        user={user}
+        settings={settings}
+        pendingBookingsCount={pendingBookingsCount}
+        agencyId={agency?.id}
+        unreadNotificationCount={unreadCount}
+        notifications={notifications}
+      >
+        <div className="w-full">
+          <ImpersonationBanner />
+          <BroadcastBanner agencyTier={settings?.tier} agencyStatus={agency?.status} />
+          <Suspense>{children}</Suspense>
+        </div>
+      </AdminLayoutShell>
+    </AdminLanguageProvider>
   );
 }

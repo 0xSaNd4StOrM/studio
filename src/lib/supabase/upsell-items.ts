@@ -7,6 +7,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { toCamelCase } from '@/lib/utils';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
+import { getPublicTargetLocale } from '@/lib/translation/get-locale';
+import { translateObject, translateObjects } from '@/lib/translation/translate-object';
+
+const UPSELL_TRANSLATABLE_FIELDS = ['name', 'description', 'variants[].name'] as const;
 
 function ensureUpsellItemDefaults(item: UpsellItem): UpsellItem {
   return {
@@ -44,7 +48,9 @@ function normalizeTargeting(targeting: UpsellItem['targeting'] | undefined) {
   };
 }
 
-export async function getUpsellItems(): Promise<UpsellItem[]> {
+export async function getUpsellItems(
+  options: { skipTranslation?: boolean } = {}
+): Promise<UpsellItem[]> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -59,10 +65,19 @@ export async function getUpsellItems(): Promise<UpsellItem[]> {
     return [];
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map((item) => ensureUpsellItemDefaults(toCamelCase(item) as UpsellItem));
+  const items = (data as any[]).map((item) =>
+    ensureUpsellItemDefaults(toCamelCase(item) as UpsellItem)
+  );
+  if (options.skipTranslation) return items;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return items;
+  return translateObjects(items, UPSELL_TRANSLATABLE_FIELDS, target);
 }
 
-export async function getUpsellItemById(id: string): Promise<UpsellItem | null> {
+export async function getUpsellItemById(
+  id: string,
+  options: { skipTranslation?: boolean } = {}
+): Promise<UpsellItem | null> {
   const supabase = await createClient();
   const agencyId = await getCurrentAgencyId();
 
@@ -79,7 +94,11 @@ export async function getUpsellItemById(id: string): Promise<UpsellItem | null> 
   }
   if (!data) return null;
 
-  return ensureUpsellItemDefaults(toCamelCase(data) as UpsellItem);
+  const item = ensureUpsellItemDefaults(toCamelCase(data) as UpsellItem);
+  if (options.skipTranslation) return item;
+  const target = await getPublicTargetLocale();
+  if (target === 'en') return item;
+  return translateObject(item, UPSELL_TRANSLATABLE_FIELDS, target);
 }
 
 async function handleImageUpload(

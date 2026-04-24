@@ -10,6 +10,7 @@ import { getCustomers } from '@/lib/supabase/customers';
 import { getTours } from '@/lib/supabase/tours';
 import { getCurrentAgency } from '@/lib/supabase/agencies';
 import { getAgencySettings } from '@/lib/supabase/agency-content';
+import { getAdminT } from '@/lib/admin-i18n';
 import { Suspense } from 'react';
 
 function formatRevenue(value: number, currency: string) {
@@ -95,12 +96,13 @@ export default async function AdminDashboard({
   const [allBookings, customers, tours, agency, agencySettings] = await Promise.all([
     getBookings(),
     getCustomers(),
-    getTours(),
+    getTours({ skipTranslation: true }),
     getCurrentAgency(),
-    getAgencySettings(),
+    getAgencySettings({ skipTranslation: true }),
   ]);
 
   const defaultCurrency = agencySettings?.data?.defaultCurrency ?? 'USD';
+  const t = getAdminT(agencySettings?.data?.adminLanguage ?? 'en');
 
   // Filter bookings by period
   const now = new Date();
@@ -133,29 +135,29 @@ export default async function AdminDashboard({
   const onboardingSteps = [
     {
       id: 'logo',
-      label: 'Upload your logo',
-      description: 'Brand your agency with a custom logo',
+      label: t('admin.uploadLogo'),
+      description: t('admin.uploadLogoDesc'),
       href: '/admin/settings',
       completed: !!agency?.settings?.theme?.logoUrl,
     },
     {
       id: 'contact',
-      label: 'Configure contact info',
-      description: 'Add your email, phone, and address',
+      label: t('admin.configureContact'),
+      description: t('admin.configureContactDesc'),
       href: '/admin/settings',
       completed: !!(agency?.settings?.contact?.email || agency?.settings?.contact?.phone),
     },
     {
       id: 'tour',
-      label: 'Create your first tour',
-      description: 'Add a tour or hotel for customers to book',
+      label: t('admin.createFirstTour'),
+      description: t('admin.createFirstTourDesc'),
       href: '/admin/tours',
       completed: tours.length > 0,
     },
     {
       id: 'homepage',
-      label: 'Set up your homepage',
-      description: 'Customise the hero section and visuals',
+      label: t('admin.setupHomepage'),
+      description: t('admin.setupHomepageDesc'),
       href: '/admin/home-page-editor',
       completed: !!(
         agency?.settings?.theme?.primaryColor ||
@@ -165,8 +167,8 @@ export default async function AdminDashboard({
     },
     {
       id: 'booking',
-      label: 'Receive your first booking',
-      description: 'Share your site and start taking orders',
+      label: t('admin.receiveFirstBooking'),
+      description: t('admin.receiveFirstBookingDesc'),
       href: '/admin/bookings',
       completed: allBookings.length > 0,
     },
@@ -175,12 +177,12 @@ export default async function AdminDashboard({
 
   const periodLabel =
     period === '7'
-      ? 'last 7 days'
+      ? t('admin.last7Days')
       : period === '90'
-        ? 'last 90 days'
+        ? t('admin.last90Days')
         : period === 'all'
-          ? 'all time'
-          : 'last 30 days';
+          ? t('admin.allTime')
+          : t('admin.last30Days');
 
   const recentItems = periodBookings.slice(0, 5).map((b) => ({
     user: b.customerName ?? b.customerEmail ?? 'Customer',
@@ -194,9 +196,9 @@ export default async function AdminDashboard({
       {showOnboarding && <GettingStarted steps={onboardingSteps} />}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">{t('admin.dashboard')}</h1>
           <p className="text-sm text-muted-foreground capitalize">
-            Showing stats for {periodLabel}
+            {t('admin.showingStatsFor')} {periodLabel}
           </p>
         </div>
         <Suspense fallback={null}>
@@ -207,7 +209,7 @@ export default async function AdminDashboard({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="rounded-lg shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('admin.totalRevenue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -217,7 +219,7 @@ export default async function AdminDashboard({
         </Card>
         <Card className="rounded-lg shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('admin.totalBookings')}</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -227,7 +229,7 @@ export default async function AdminDashboard({
         </Card>
         <Card className="rounded-lg shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('admin.newCustomers')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -237,12 +239,12 @@ export default async function AdminDashboard({
         </Card>
         <Card className="rounded-lg shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Tours</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('admin.activeTours')}</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeTours}</div>
-            <p className="text-xs text-muted-foreground">Currently available</p>
+            <p className="text-xs text-muted-foreground">{t('admin.currentlyAvailable')}</p>
           </CardContent>
         </Card>
       </div>
@@ -252,7 +254,7 @@ export default async function AdminDashboard({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4 rounded-lg shadow-sm">
           <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
+            <CardTitle>{t('admin.revenueTrend')}</CardTitle>
             <CardDescription className="capitalize">{periodLabel}</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
@@ -261,7 +263,7 @@ export default async function AdminDashboard({
         </Card>
         <Card className="lg:col-span-3 rounded-lg shadow-sm">
           <CardHeader>
-            <CardTitle>Recent Bookings</CardTitle>
+            <CardTitle>{t('admin.recentBookings')}</CardTitle>
             <CardDescription className="capitalize">{periodLabel}</CardDescription>
           </CardHeader>
           <CardContent>

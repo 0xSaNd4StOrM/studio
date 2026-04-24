@@ -1,6 +1,7 @@
 'use client';
 
 import { useCart } from '@/hooks/use-cart';
+import { useLanguage } from '@/hooks/use-language';
 import type { Tour } from '@/types';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
@@ -11,6 +12,7 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ tour }: AddToCartButtonProps) {
   const { addToCart, cartItems } = useCart();
+  const { t } = useLanguage();
   const isInCart = cartItems.some(
     (item) => item.product.id === tour.id && item.productType === 'tour'
   );
@@ -24,11 +26,11 @@ export function AddToCartButton({ tour }: AddToCartButtonProps) {
     <Button
       onClick={handleAddToCart}
       disabled={!tour.availability || isInCart}
-      aria-label={isInCart ? 'Already in cart' : 'Add to cart'}
+      aria-label={isInCart ? t('cart.inCart') : t('cart.addToCart')}
       className="transition-all duration-200"
     >
       <ShoppingCart className="mr-2 h-4 w-4" />
-      {isInCart ? 'In Cart' : 'Add to Cart'}
+      {isInCart ? t('cart.inCart') : t('cart.addToCart')}
     </Button>
   );
 }

@@ -190,24 +190,24 @@ function LastMinuteOfferCard({ tour }: { tour: Tour }) {
 import { AgencySettingsData } from '@/lib/supabase/agency-content';
 
 // ─── H2.4 Amenities Map ───────────────────────────────────────────────────────
-type AmenityDef = { label: string; icon: React.ElementType };
+type AmenityDef = { labelKey: string; icon: React.ElementType };
 const AMENITIES_MAP: Record<string, AmenityDef> = {
-  wifi: { label: 'Free WiFi', icon: Wifi },
-  pool: { label: 'Swimming Pool', icon: Droplets },
-  spa: { label: 'Spa & Wellness', icon: Sparkles },
-  restaurant: { label: 'Restaurant', icon: Utensils },
-  gym: { label: 'Fitness Center', icon: Dumbbell },
-  parking: { label: 'Free Parking', icon: Car },
-  bar: { label: 'Bar & Lounge', icon: Wine },
-  shuttle: { label: 'Airport Shuttle', icon: Bus },
-  roomService: { label: '24h Room Service', icon: Bell },
-  pets: { label: 'Pet Friendly', icon: PawPrint },
-  kids: { label: 'Kids Club', icon: Users },
-  meetings: { label: 'Meeting Rooms', icon: Users2 },
-  ac: { label: 'Air Conditioning', icon: Wind },
-  beach: { label: 'Beach Access', icon: Sun },
-  laundry: { label: 'Laundry', icon: Shirt },
-  concierge: { label: 'Concierge', icon: ConciergeBell },
+  wifi: { labelKey: 'amenity.wifi', icon: Wifi },
+  pool: { labelKey: 'amenity.pool', icon: Droplets },
+  spa: { labelKey: 'amenity.spa', icon: Sparkles },
+  restaurant: { labelKey: 'amenity.restaurant', icon: Utensils },
+  gym: { labelKey: 'amenity.gym', icon: Dumbbell },
+  parking: { labelKey: 'amenity.parking', icon: Car },
+  bar: { labelKey: 'amenity.bar', icon: Wine },
+  shuttle: { labelKey: 'amenity.shuttle', icon: Bus },
+  roomService: { labelKey: 'amenity.roomService', icon: Bell },
+  pets: { labelKey: 'amenity.pets', icon: PawPrint },
+  kids: { labelKey: 'amenity.kids', icon: Users },
+  meetings: { labelKey: 'amenity.meetings', icon: Users2 },
+  ac: { labelKey: 'amenity.ac', icon: Wind },
+  beach: { labelKey: 'amenity.beach', icon: Sun },
+  laundry: { labelKey: 'amenity.laundry', icon: Shirt },
+  concierge: { labelKey: 'amenity.concierge', icon: ConciergeBell },
 };
 
 // ─── H2.6 Why Book Direct Icon Map ────────────────────────────────────────────
@@ -844,7 +844,7 @@ export default function HomePageClient({
                           <Icon className="h-6 w-6 text-primary" />
                         </div>
                         <span className="text-sm font-semibold text-foreground text-center leading-tight">
-                          {amenity.label}
+                          {t(amenity.labelKey)}
                         </span>
                       </div>
                     );
