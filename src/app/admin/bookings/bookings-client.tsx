@@ -1,16 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Booking } from '@/types';
 import { columns } from './columns';
 import { DataTable } from './data-table';
 import { updateBookingStatus, deleteBooking } from '@/lib/supabase/bookings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Clock, CheckCircle, Download } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle, Download, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+export type BookingRow = Booking & { _duplicateGroupId?: string };
 
 interface BookingsClientProps {
   initialBookings: Booking[];
+}
+
+const DUPLICATE_WINDOW_MS = 30 * 60 * 1000;
+
+function computeDuplicateGroups(bookings: Booking[]): Map<string, string> {
+  // Bucket by (email + primary tour id + item date), sort each bucket by bookingDate,
+  // then mark as duplicates any rows within 30 min of an active neighbor.
+  const buckets = new Map<string, { id: string; ts: number }[]>();
+
+  for (const b of bookings) {
+    if (b.status === 'Cancelled') continue;
+    const primary = b.bookingItems?.[0];
+    const tourId = primary?.tourId;
+    const itemDate = primary?.itemDate;
+    const email = b.customerEmail?.toLowerCase().trim();
+    if (!email || !tourId || !itemDate) continue;
+
+    const ts = new Date(b.bookingDate).getTime();
+    if (Number.isNaN(ts)) continue;
+
+    const key = `${email}|${tourId}|${itemDate}`;
+    const arr = buckets.get(key) ?? [];
+    arr.push({ id: b.id, ts });
+    buckets.set(key, arr);
+  }
+
+  const map = new Map<string, string>();
+  for (const [key, rowList] of buckets) {
+    if (rowList.length < 2) continue;
+    rowList.sort((a, b) => a.ts - b.ts);
+
+    let groupIdx = 0;
+    let currentGroup: { id: string; ts: number }[] = [rowList[0]];
+    const flushGroup = () => {
+      if (currentGroup.length >= 2) {
+        const groupId = `${key}#${groupIdx++}`;
+        for (const r of currentGroup) map.set(r.id, groupId);
+      }
+    };
+
+    for (let i = 1; i < rowList.length; i++) {
+      const prev = currentGroup[currentGroup.length - 1];
+      if (rowList[i].ts - prev.ts <= DUPLICATE_WINDOW_MS) {
+        currentGroup.push(rowList[i]);
+      } else {
+        flushGroup();
+        currentGroup = [rowList[i]];
+      }
+    }
+    flushGroup();
+  }
+
+  return map;
 }
 
 export function BookingsClient({ initialBookings }: BookingsClientProps) {
@@ -26,9 +81,28 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
     setBookings((prev) => prev.filter((b) => b.id !== bookingId));
   };
 
+  const handleBulkCancel = async (ids: string[]) => {
+    await Promise.all(ids.map((id) => updateBookingStatus(id, 'Cancelled')));
+    setBookings((prev) =>
+      prev.map((b) => (ids.includes(b.id) ? { ...b, status: 'Cancelled' } : b))
+    );
+  };
+
+  const duplicateGroups = useMemo(() => computeDuplicateGroups(bookings), [bookings]);
+
+  const rows: BookingRow[] = useMemo(
+    () =>
+      bookings.map((b) => {
+        const gid = duplicateGroups.get(b.id);
+        return gid ? { ...b, _duplicateGroupId: gid } : b;
+      }),
+    [bookings, duplicateGroups]
+  );
+
   const totalRevenue = bookings.reduce((sum, b) => sum + (b.totalPrice ?? 0), 0);
   const pendingBookings = bookings.filter((b) => b.status === 'Pending').length;
   const confirmedBookings = bookings.filter((b) => b.status === 'Confirmed').length;
+  const duplicateCount = duplicateGroups.size;
 
   const handleExport = () => {
     // Escape a value for CSV: wrap in quotes if it contains commas, quotes, or newlines
@@ -54,7 +128,7 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
       'Total Price (USD)',
     ];
 
-    const rows = bookings.map((b) => {
+    const csvRows = bookings.map((b) => {
       const itemNames = (b.bookingItems || [])
         .map((item) => item.tours?.name ?? item.upsellItems?.name ?? 'Item')
         .join(' | ');
@@ -74,7 +148,7 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
     });
 
     // BOM prefix (\uFEFF) ensures Excel and Arabic Windows open the file correctly
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...csvRows].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -89,7 +163,7 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -120,6 +194,38 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
             <p className="text-xs text-muted-foreground">Ready for departure</p>
           </CardContent>
         </Card>
+        <Card
+          className={
+            duplicateCount > 0
+              ? 'border-amber-300 bg-amber-50/40 dark:border-amber-900/60 dark:bg-amber-950/20'
+              : ''
+          }
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Possible Duplicates</CardTitle>
+            <Copy
+              className={
+                duplicateCount > 0
+                  ? 'h-4 w-4 text-amber-600 dark:text-amber-400'
+                  : 'h-4 w-4 text-muted-foreground'
+              }
+            />
+          </CardHeader>
+          <CardContent>
+            <div
+              className={
+                duplicateCount > 0
+                  ? 'text-2xl font-bold text-amber-700 dark:text-amber-300'
+                  : 'text-2xl font-bold'
+              }
+            >
+              {duplicateCount}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {duplicateCount > 0 ? 'Review before confirming' : 'No duplicates detected'}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex justify-end">
@@ -134,7 +240,8 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
           onUpdateStatus: handleUpdateStatus,
           onDelete: handleDeleteBooking,
         })}
-        data={bookings}
+        data={rows}
+        onBulkCancel={handleBulkCancel}
       />
     </div>
   );

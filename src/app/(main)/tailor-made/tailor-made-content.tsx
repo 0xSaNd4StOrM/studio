@@ -9,7 +9,7 @@ export function TailorMadePageContent() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Hero Header */}
-      <div className="relative bg-primary/5 py-16 md:py-24">
+      <div className="relative bg-gradient-to-b from-primary/10 via-primary/5 to-transparent py-16 md:py-24">
         <div className="container mx-auto px-4 text-center">
           <h1 className="font-headline text-4xl md:text-6xl font-bold mb-6 text-primary">
             {t('tailor.title')}
@@ -22,7 +22,7 @@ export function TailorMadePageContent() {
       </div>
 
       <div className="container mx-auto px-4 -mt-8 relative z-10">
-        <div className="bg-card border rounded-2xl shadow-xl p-6 md:p-10 max-w-5xl mx-auto">
+        <div className="bg-card border rounded-2xl shadow-xl p-6 md:p-10 max-w-6xl mx-auto">
           <TailorMadeForm />
         </div>
       </div>

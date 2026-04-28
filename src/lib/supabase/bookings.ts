@@ -306,16 +306,19 @@ export async function createBooking(data: CreateBookingData) {
   let bookingData: { id: string } | null = null;
   let bookingError: { message?: string } | null = null;
 
-  {
-    const res = await supabase.from('bookings').insert(insertPayload).select('id').single();
+  if (data.bookingId) {
+    // Idempotent path: when caller supplies a provisional bookingId (online
+    // checkout pre-redirect), upsert so resubmission with the same id updates
+    // the existing Pending row instead of creating a duplicate.
+    const res = await supabase
+      .from('bookings')
+      .upsert(insertPayload, { onConflict: 'id' })
+      .select('id')
+      .single();
     bookingData = (res.data as { id: string } | null) ?? null;
     bookingError = (res.error as { message?: string } | null) ?? null;
-  }
-
-  if (bookingError?.message?.includes('payment_method')) {
-    // Fallback for schema mismatch if column doesn't exist (should exist based on previous checks but good for safety)
-    const { payment_method: _, ...fallbackPayload } = insertPayload;
-    const res = await supabase.from('bookings').insert(fallbackPayload).select('id').single();
+  } else {
+    const res = await supabase.from('bookings').insert(insertPayload).select('id').single();
     bookingData = (res.data as { id: string } | null) ?? null;
     bookingError = (res.error as { message?: string } | null) ?? null;
   }
@@ -327,7 +330,23 @@ export async function createBooking(data: CreateBookingData) {
 
   const bookingId = bookingData.id;
 
-  // 4. Insert into booking_items table
+  // 4. Insert into booking_items table.
+  // For the idempotent upsert path, clear any pre-existing items for this
+  // booking id (using the admin client to bypass RLS) so the items reflect
+  // the current cart on resubmission.
+  if (data.bookingId) {
+    const adminClient = await createAdminClient();
+    const { error: deleteItemsError } = await adminClient
+      .from('booking_items')
+      .delete()
+      .eq('booking_id', bookingId);
+
+    if (deleteItemsError) {
+      console.error('Error clearing existing booking items:', deleteItemsError);
+      throw new Error('Failed to refresh booking items.');
+    }
+  }
+
   const itemsWithId = bookingItemsToInsert.map((item) => ({
     ...item,
     booking_id: bookingId,
@@ -553,4 +572,40 @@ export async function createBooking(data: CreateBookingData) {
   }
 
   return bookingId as string;
+}
+
+/**
+ * Cancels stale online Pending bookings older than 60 minutes for the
+ * current agency. Used to garbage-collect rows where the customer abandoned
+ * the Kashier redirect without completing payment.
+ *
+ * Returns the number of rows transitioned to 'Cancelled'.
+ */
+export async function cleanupStalePendingBookings(): Promise<number> {
+  const supabase = await createAdminClient();
+  const agencyId = await getCurrentAgencyId();
+
+  const cutoffIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status: 'Cancelled' })
+    .eq('agency_id', agencyId)
+    .eq('status', 'Pending')
+    .eq('payment_method', 'online')
+    .lt('created_at', cutoffIso)
+    .select('id');
+
+  if (error) {
+    console.error('Error cleaning up stale pending bookings:', error);
+    throw new Error('Failed to clean up stale pending bookings.');
+  }
+
+  const cancelledCount = data?.length ?? 0;
+
+  if (cancelledCount > 0) {
+    revalidatePath('/admin/bookings');
+  }
+
+  return cancelledCount;
 }

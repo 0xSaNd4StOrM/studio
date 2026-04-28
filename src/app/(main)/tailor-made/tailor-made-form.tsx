@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useMemo, useRef, useState } from 'react';
+import { FieldErrors, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { addDays, format } from 'date-fns';
 import { z } from 'zod';
-import { format } from 'date-fns';
-import { CalendarIcon, Loader2, ChevronsUpDown, Info } from 'lucide-react';
+import { AlertCircle, CalendarIcon, Info, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,10 +30,10 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { generateTailorMadeTourAction } from '@/app/actions';
 
-// Extended schema for form handling
 const FormSchema = z.object({
   arrivalDate: z.date({
     required_error: 'Arrival date is required.',
@@ -62,6 +62,8 @@ const FormSchema = z.object({
   customPreferences: z.string().optional(),
 });
 
+type FormValues = z.infer<typeof FormSchema>;
+
 type TourResult = {
   tourName: string;
   summary: string;
@@ -79,6 +81,16 @@ type TourResult = {
   exclusions: string[];
   transportationDetails: string;
 };
+
+const regions = [
+  'Cairo & Giza',
+  'Luxor & Aswan',
+  'Red Sea (Hurghada/Sharm)',
+  'Alexandria & North Coast',
+  'Western Desert Oases',
+  'Sinai Peninsula',
+  'All Major Regions (Grand Tour)',
+];
 
 const inclusionOptions = [
   { id: 'breakfast', label: 'Breakfast included' },
@@ -102,12 +114,100 @@ const interestOptions = [
   { id: 'photography', label: 'Photography' },
 ];
 
+type StepField = keyof FormValues;
+
+type FormStep = {
+  id: number;
+  title: string;
+  description: string;
+  fields: StepField[];
+};
+
+const formSteps: FormStep[] = [
+  {
+    id: 1,
+    title: 'Trip Basics',
+    description: 'Arrival date, duration, and participant details.',
+    fields: ['arrivalDate', 'duration', 'participants'],
+  },
+  {
+    id: 2,
+    title: 'Destinations & Interests',
+    description: 'Choose regions and travel interests.',
+    fields: ['region', 'interests'],
+  },
+  {
+    id: 3,
+    title: 'Comfort, Budget & Extras',
+    description: 'Set comfort level, budget, and optional add-ons.',
+    fields: ['accommodation', 'budgetAmount', 'budgetCurrency', 'inclusions', 'customPreferences'],
+  },
+];
+
+const fieldOrder: StepField[] = [
+  'arrivalDate',
+  'duration',
+  'participants',
+  'region',
+  'interests',
+  'accommodation',
+  'budgetAmount',
+  'budgetCurrency',
+  'inclusions',
+  'customPreferences',
+];
+
+const fieldStepMap: Record<StepField, number> = {
+  arrivalDate: 1,
+  duration: 1,
+  participants: 1,
+  region: 2,
+  interests: 2,
+  accommodation: 3,
+  budgetAmount: 3,
+  budgetCurrency: 3,
+  inclusions: 3,
+  customPreferences: 3,
+};
+
+function updateSelection(values: string[] | undefined, item: string, checked: boolean): string[] {
+  const safeValues = values ?? [];
+
+  if (checked) {
+    return Array.from(new Set([...safeValues, item]));
+  }
+
+  return safeValues.filter((value) => value !== item);
+}
+
+function getFirstInvalidField(errors: FieldErrors<FormValues>): StepField | null {
+  for (const field of fieldOrder) {
+    if (errors[field]) {
+      return field;
+    }
+  }
+
+  return null;
+}
+
+function formatDateValue(date?: Date | null): string {
+  if (!date) {
+    return 'Not set';
+  }
+
+  return format(date, 'PPP');
+}
+
 export function TailorMadeForm() {
   const { toast } = useToast();
+  const formTopRef = useRef<HTMLDivElement | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<TourResult | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof FormSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       duration: 7,
@@ -116,17 +216,86 @@ export function TailorMadeForm() {
       inclusions: [],
       interests: [],
       region: [],
-      accommodation: '4-star hotel accommodation', // Default value
+      accommodation: '4-star hotel accommodation',
       customPreferences: '',
     },
   });
 
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
+  const arrivalDate = form.watch('arrivalDate');
+  const duration = form.watch('duration');
+  const participants = form.watch('participants');
+  const budgetAmount = form.watch('budgetAmount');
+  const budgetCurrency = form.watch('budgetCurrency');
+  const selectedRegions = form.watch('region');
+  const selectedInterests = form.watch('interests');
+  const selectedInclusions = form.watch('inclusions');
+
+  const activeStep = formSteps[currentStep - 1];
+  const nextStepTitle = currentStep < formSteps.length ? formSteps[currentStep].title : '';
+
+  const departureDate = useMemo(() => {
+    if (!arrivalDate || !duration || Number.isNaN(Number(duration))) {
+      return null;
+    }
+
+    return addDays(arrivalDate, Number(duration));
+  }, [arrivalDate, duration]);
+
+  const travelBudgetLabel = useMemo(() => {
+    if (!budgetAmount || Number.isNaN(Number(budgetAmount))) {
+      return 'Not set';
+    }
+
+    return `${budgetAmount} ${budgetCurrency ?? 'USD'} per person`;
+  }, [budgetAmount, budgetCurrency]);
+
+  const goToTop = () => {
+    formTopRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const validateCurrentStep = async () => {
+    return form.trigger(activeStep.fields, { shouldFocus: true });
+  };
+
+  const handleNextStep = async () => {
+    setSubmitErrorMessage(null);
+    const isValid = await validateCurrentStep();
+
+    if (!isValid) {
+      setSubmitErrorMessage('Please complete the highlighted fields before continuing.');
+      goToTop();
+      return;
+    }
+
+    setCurrentStep((prev) => Math.min(prev + 1, formSteps.length));
+    goToTop();
+  };
+
+  const handleBackStep = () => {
+    setSubmitErrorMessage(null);
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    goToTop();
+  };
+
+  const handleInvalidSubmit = (errors: FieldErrors<FormValues>) => {
+    const firstInvalidField = getFirstInvalidField(errors);
+    if (firstInvalidField) {
+      setCurrentStep(fieldStepMap[firstInvalidField]);
+    }
+
+    setSubmitErrorMessage('Please review the highlighted fields and try again.');
+    goToTop();
+  };
+
+  async function onSubmit(data: FormValues) {
     setIsLoading(true);
     setResult(null);
+    setSubmitErrorMessage(null);
 
     try {
-      // Transform form data to match TourInputSchema
       const apiInput = {
         travelDates: {
           arrival: format(data.arrivalDate, 'yyyy-MM-dd'),
@@ -171,23 +340,13 @@ export function TailorMadeForm() {
     }
   }
 
-  const regions = [
-    'Cairo & Giza',
-    'Luxor & Aswan',
-    'Red Sea (Hurghada/Sharm)',
-    'Alexandria & North Coast',
-    'Western Desert Oases',
-    'Sinai Peninsula',
-    'All Major Regions (Grand Tour)',
-  ];
-
   if (result) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
-        <div className="bg-card border rounded-xl p-6 shadow-sm">
-          <div className="flex justify-between items-start mb-4">
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <div className="mb-4 flex items-start justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-primary mb-2">{result.tourName}</h2>
+              <h2 className="mb-2 text-3xl font-bold text-primary">{result.tourName}</h2>
               <p className="text-muted-foreground">{result.summary}</p>
             </div>
             <div className="text-right">
@@ -198,17 +357,17 @@ export function TailorMadeForm() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-muted/30 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2">Inclusions</h4>
-              <ul className="list-disc list-inside text-sm space-y-1">
+          <div className="mb-6 grid gap-6 md:grid-cols-2">
+            <div className="rounded-lg bg-muted/30 p-4">
+              <h4 className="mb-2 font-semibold">Inclusions</h4>
+              <ul className="list-inside list-disc space-y-1 text-sm">
                 {result.inclusions.map((inc, i) => (
                   <li key={i}>{inc}</li>
                 ))}
               </ul>
             </div>
-            <div className="bg-muted/30 p-4 rounded-lg">
-              <h4 className="font-semibold mb-2">Transportation</h4>
+            <div className="rounded-lg bg-muted/30 p-4">
+              <h4 className="mb-2 font-semibold">Transportation</h4>
               <p className="text-sm">{result.transportationDetails}</p>
             </div>
           </div>
@@ -216,12 +375,12 @@ export function TailorMadeForm() {
           <div className="space-y-6">
             <h3 className="text-xl font-semibold">Day by Day Itinerary</h3>
             {result.itinerary.map((day) => (
-              <div key={day.day} className="border-l-4 border-primary pl-4 py-2">
-                <h4 className="font-bold text-lg">
+              <div key={day.day} className="border-l-4 border-primary py-2 pl-4">
+                <h4 className="text-lg font-bold">
                   Day {day.day}: {day.title}
                 </h4>
-                <p className="text-sm text-muted-foreground mb-2">{day.description}</p>
-                <div className="grid sm:grid-cols-2 gap-2 text-sm mt-2">
+                <p className="mb-2 text-sm text-muted-foreground">{day.description}</p>
+                <div className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
                   <p>
                     <strong>Activities:</strong> {day.activities.join(', ')}
                   </p>
@@ -237,7 +396,7 @@ export function TailorMadeForm() {
           </div>
         </div>
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex justify-center gap-4">
           <Button onClick={() => setResult(null)} variant="outline">
             Create Another Tour
           </Button>
@@ -250,368 +409,539 @@ export function TailorMadeForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Travel Details Section */}
-          <div className="space-y-6 bg-muted/20 p-6 rounded-xl border">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-primary" /> Travel Details
-            </h3>
-
-            <FormField
-              control={form.control}
-              name="arrivalDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Arrival Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'w-full pl-3 text-left font-normal',
-                            !field.value && 'text-muted-foreground'
-                          )}
-                        >
-                          {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) => date < new Date() || date < new Date('1900-01-01')}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (Days)</FormLabel>
-                    <FormControl>
-                      <Input type="number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="participants"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Participants</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        {...field}
-                        value={field.value || ''}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber || e.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <form onSubmit={form.handleSubmit(onSubmit, handleInvalidSubmit)} className="space-y-6">
+        <div ref={formTopRef} className="space-y-6">
+          <div className="rounded-xl border bg-muted/20 p-4 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-primary">
+                Step {currentStep} of {formSteps.length}
+              </p>
+              <p className="text-sm text-muted-foreground">{activeStep.title}</p>
             </div>
 
-            <FormField
-              control={form.control}
-              name="region"
-              render={() => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="text-base">Preferred Regions</FormLabel>
-                    <FormDescription>Select the regions you would like to visit.</FormDescription>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {formSteps.map((step) => {
+                const isActive = currentStep === step.id;
+                const isCompleted = currentStep > step.id;
+                const isClickable = step.id <= currentStep;
+
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => isClickable && setCurrentStep(step.id)}
+                    disabled={!isClickable}
+                    className={cn(
+                      'rounded-lg border p-3 text-left transition-colors',
+                      isActive && 'border-primary bg-primary/10 shadow-sm',
+                      isCompleted && 'cursor-pointer border-primary/40 bg-primary/5 hover:bg-primary/10',
+                      !isActive && !isCompleted && 'border-border/70 bg-background text-muted-foreground'
+                    )}
+                  >
+                    <p className="text-xs uppercase tracking-wide">Step {step.id}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{step.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {submitErrorMessage && (
+            <Alert variant="destructive" className="border-destructive/60 bg-destructive/5">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>There are some form issues to fix</AlertTitle>
+              <AlertDescription>{submitErrorMessage}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="space-y-6">
+              {currentStep === 1 && (
+                <section className="space-y-6 rounded-xl border bg-muted/20 p-6 md:p-8">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold">Trip Basics</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Start with your travel timeline and group size.
+                    </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {regions.map((region) => (
-                      <FormField
-                        key={region}
-                        control={form.control}
-                        name="region"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
+
+                  <FormField
+                    control={form.control}
+                    name="arrivalDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Arrival Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  'w-full justify-start pl-3 text-left font-normal',
+                                  !field.value && 'text-muted-foreground'
+                                )}
+                              >
+                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) => date < new Date() || date < new Date('1900-01-01')}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="duration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration (Days)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="participants"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Participants</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={20}
+                              {...field}
+                              value={field.value || ''}
+                              onChange={(e) => field.onChange(e.target.valueAsNumber || e.target.value)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {currentStep === 2 && (
+                <section className="space-y-7 rounded-xl border bg-muted/20 p-6 md:p-8">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold">Destinations & Interests</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose where you want to go and the experiences you care about most.
+                    </p>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="region"
+                    render={() => (
+                      <FormItem>
+                        <div className="mb-3">
+                          <FormLabel className="text-base">Preferred Regions</FormLabel>
+                          <FormDescription>
+                            Select one or more regions for your itinerary.
+                          </FormDescription>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {regions.map((region) => (
+                            <FormField
                               key={region}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(region)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...field.value, region])
-                                      : field.onChange(
-                                          field.value?.filter((value) => value !== region)
-                                        );
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal text-sm cursor-pointer">
-                                {region}
-                              </FormLabel>
-                            </FormItem>
-                          );
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+                              control={form.control}
+                              name="region"
+                              render={({ field }) => {
+                                const checked = field.value?.includes(region);
+                                const checkboxId = `region-${region.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-          {/* Accommodation & Budget Section */}
-          <div className="space-y-6 bg-muted/20 p-6 rounded-xl border">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <Info className="w-5 h-5 text-primary" /> Accommodation & Budget
-            </h3>
+                                return (
+                                  <FormItem
+                                    className={cn(
+                                      'rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-ring',
+                                      checked ? 'border-primary bg-primary/5' : 'hover:border-primary/40'
+                                    )}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <FormControl>
+                                        <Checkbox
+                                          id={checkboxId}
+                                          checked={checked}
+                                          onCheckedChange={(value) =>
+                                            field.onChange(
+                                              updateSelection(field.value, region, value === true)
+                                            )
+                                          }
+                                          className="mt-0.5"
+                                        />
+                                      </FormControl>
+                                      <FormLabel
+                                        htmlFor={checkboxId}
+                                        className="cursor-pointer text-sm font-medium leading-relaxed"
+                                      >
+                                        {region}
+                                      </FormLabel>
+                                    </div>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="accommodation"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Accommodation Preference</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select accommodation" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="3-star hotel accommodation">
-                        3-star hotel accommodation
-                      </SelectItem>
-                      <SelectItem value="4-star hotel accommodation">
-                        4-star hotel accommodation
-                      </SelectItem>
-                      <SelectItem value="5-star hotel accommodation">
-                        5-star hotel accommodation
-                      </SelectItem>
-                      <SelectItem value="Self-booked accommodation">
-                        Self-booked accommodation
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="interests"
+                    render={() => (
+                      <FormItem>
+                        <div className="mb-3">
+                          <FormLabel className="text-base">Interests</FormLabel>
+                          <FormDescription>
+                            Pick at least one interest so we tailor the experience around you.
+                          </FormDescription>
+                        </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="budgetAmount"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Budget (Per Person)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        placeholder="1500"
-                        {...field}
-                        value={field.value || ''}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber || e.target.value)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="budgetCurrency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Currency</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="USD" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="GBP">GBP</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          {/* Inclusions Section */}
-          <div className="space-y-6 bg-muted/20 p-6 rounded-xl border md:col-span-2">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <ChevronsUpDown className="w-5 h-5 text-primary" /> Tour Inclusions
-            </h3>
-
-            <FormField
-              control={form.control}
-              name="inclusions"
-              render={() => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="text-base">Select your tour inclusions</FormLabel>
-                    <FormDescription>
-                      Check the services you want included in your package.
-                    </FormDescription>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {inclusionOptions.map((item) => (
-                      <FormField
-                        key={item.id}
-                        control={form.control}
-                        name="inclusions"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          {interestOptions.map((item) => (
+                            <FormField
                               key={item.id}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(item.label)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...field.value, item.label])
-                                      : field.onChange(
-                                          field.value?.filter((value) => value !== item.label)
-                                        );
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal text-sm cursor-pointer">
-                                {item.label}
-                              </FormLabel>
-                            </FormItem>
-                          );
-                        }}
-                      />
-                    ))}
+                              control={form.control}
+                              name="interests"
+                              render={({ field }) => {
+                                const checked = field.value?.includes(item.label);
+                                const checkboxId = `interest-${item.id}`;
 
-                    <div className="flex flex-row items-start space-x-3 space-y-0">
-                      <Checkbox disabled />
-                      <span className="font-normal text-sm text-muted-foreground">
-                        Special activities (specify in comments)
-                      </span>
+                                return (
+                                  <FormItem
+                                    className={cn(
+                                      'rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-ring',
+                                      checked ? 'border-primary bg-primary/5' : 'hover:border-primary/40'
+                                    )}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <FormControl>
+                                        <Checkbox
+                                          id={checkboxId}
+                                          checked={checked}
+                                          onCheckedChange={(value) =>
+                                            field.onChange(
+                                              updateSelection(field.value, item.label, value === true)
+                                            )
+                                          }
+                                          className="mt-0.5"
+                                        />
+                                      </FormControl>
+                                      <FormLabel
+                                        htmlFor={checkboxId}
+                                        className="cursor-pointer text-sm font-medium leading-relaxed"
+                                      >
+                                        {item.label}
+                                      </FormLabel>
+                                    </div>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </section>
+              )}
+
+              {currentStep === 3 && (
+                <section className="space-y-7 rounded-xl border bg-muted/20 p-6 md:p-8">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-semibold">Comfort, Budget & Extras</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Finalize your comfort level, spending preference, and optional details.
+                    </p>
+                  </div>
+
+                  <div className="space-y-6 rounded-lg border bg-background/70 p-5">
+                    <h4 className="flex items-center gap-2 text-base font-semibold">
+                      <Info className="h-4 w-4 text-primary" /> Accommodation & Budget
+                    </h4>
+
+                    <FormField
+                      control={form.control}
+                      name="accommodation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Accommodation Preference</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select accommodation" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="3-star hotel accommodation">
+                                3-star hotel accommodation
+                              </SelectItem>
+                              <SelectItem value="4-star hotel accommodation">
+                                4-star hotel accommodation
+                              </SelectItem>
+                              <SelectItem value="5-star hotel accommodation">
+                                5-star hotel accommodation
+                              </SelectItem>
+                              <SelectItem value="Self-booked accommodation">
+                                Self-booked accommodation
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <FormField
+                        control={form.control}
+                        name="budgetAmount"
+                        render={({ field }) => (
+                          <FormItem className="sm:col-span-2">
+                            <FormLabel>Budget (Per Person)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="1500"
+                                {...field}
+                                value={field.value || ''}
+                                onChange={(e) =>
+                                  field.onChange(e.target.valueAsNumber || e.target.value)
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="budgetCurrency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Currency</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="USD" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
 
-          {/* Preferences Section */}
-          <div className="space-y-6 bg-muted/20 p-6 rounded-xl border md:col-span-2">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <ChevronsUpDown className="w-5 h-5 text-primary" /> Interests & Extras
-            </h3>
+                  <FormField
+                    control={form.control}
+                    name="inclusions"
+                    render={() => (
+                      <FormItem className="rounded-lg border bg-background/70 p-5">
+                        <div className="mb-3">
+                          <FormLabel className="text-base">Tour Inclusions</FormLabel>
+                          <FormDescription>
+                            Choose the services you want included in your package.
+                          </FormDescription>
+                        </div>
 
-            <FormField
-              control={form.control}
-              name="interests"
-              render={() => (
-                <FormItem>
-                  <div className="mb-4">
-                    <FormLabel className="text-base">Interests</FormLabel>
-                    <FormDescription>Select what interests you most.</FormDescription>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {interestOptions.map((item) => (
-                      <FormField
-                        key={item.id}
-                        control={form.control}
-                        name="interests"
-                        render={({ field }) => {
-                          return (
-                            <FormItem
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {inclusionOptions.map((item) => (
+                            <FormField
                               key={item.id}
-                              className="flex flex-row items-start space-x-3 space-y-0"
-                            >
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value?.includes(item.label)}
-                                  onCheckedChange={(checked) => {
-                                    return checked
-                                      ? field.onChange([...field.value, item.label])
-                                      : field.onChange(
-                                          field.value?.filter((value) => value !== item.label)
-                                        );
-                                  }}
-                                />
-                              </FormControl>
-                              <FormLabel className="font-normal text-sm cursor-pointer">
-                                {item.label}
-                              </FormLabel>
-                            </FormItem>
-                          );
-                        }}
-                      />
-                    ))}
+                              control={form.control}
+                              name="inclusions"
+                              render={({ field }) => {
+                                const checked = field.value?.includes(item.label);
+                                const checkboxId = `inclusion-${item.id}`;
+
+                                return (
+                                  <FormItem
+                                    className={cn(
+                                      'rounded-lg border p-4 transition-colors focus-within:ring-2 focus-within:ring-ring',
+                                      checked ? 'border-primary bg-primary/5' : 'hover:border-primary/40'
+                                    )}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <FormControl>
+                                        <Checkbox
+                                          id={checkboxId}
+                                          checked={checked}
+                                          onCheckedChange={(value) =>
+                                            field.onChange(
+                                              updateSelection(field.value, item.label, value === true)
+                                            )
+                                          }
+                                          className="mt-0.5"
+                                        />
+                                      </FormControl>
+                                      <FormLabel
+                                        htmlFor={checkboxId}
+                                        className="cursor-pointer text-sm font-medium leading-relaxed"
+                                      >
+                                        {item.label}
+                                      </FormLabel>
+                                    </div>
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="customPreferences"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Comments & Special Requests</FormLabel>
+                        <FormDescription>
+                          Need special activities or unique requests? Mention them here and we will
+                          account for them when building your itinerary.
+                        </FormDescription>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Mention dietary requirements, accessibility needs, celebration plans, or places you want to prioritize."
+                            className="h-32 resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </section>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBackStep}
+                  disabled={currentStep === 1 || isLoading}
+                  className="w-full sm:w-auto"
+                >
+                  Back
+                </Button>
+
+                {currentStep < formSteps.length ? (
+                  <Button
+                    type="button"
+                    onClick={handleNextStep}
+                    disabled={isLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    Next: {nextStepTitle}
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="h-12 w-full px-8 text-base sm:w-auto"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating Itinerary...
+                      </>
+                    ) : (
+                      'Generate My Tailor-Made Tour'
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <aside className="order-first xl:order-last">
+              <div className="rounded-xl border bg-card p-5 shadow-sm xl:sticky xl:top-24">
+                <h3 className="text-base font-semibold text-primary">Live Trip Summary</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Your trip snapshot updates as you complete each step.
+                </p>
+
+                <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Arrival</span>
+                    <span className="text-right font-medium">{formatDateValue(arrivalDate)}</span>
                   </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Departure</span>
+                    <span className="text-right font-medium">{formatDateValue(departureDate)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Duration</span>
+                    <span className="font-medium">
+                      {duration && !Number.isNaN(Number(duration)) ? `${duration} days` : 'Not set'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Participants</span>
+                    <span className="font-medium">
+                      {participants && !Number.isNaN(Number(participants))
+                        ? `${participants} traveler${Number(participants) > 1 ? 's' : ''}`
+                        : 'Not set'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">Budget</span>
+                    <span className="text-right font-medium">{travelBudgetLabel}</span>
+                  </div>
+                </div>
 
-            <FormField
-              control={form.control}
-              name="customPreferences"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Comments & Special Requests</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Mention special activities, dietary requirements, accessibility needs, or specific places you want to visit."
-                      className="resize-none h-32"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md bg-muted/40 p-2">
+                    <p className="text-lg font-semibold text-primary">{selectedRegions.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Regions</p>
+                  </div>
+                  <div className="rounded-md bg-muted/40 p-2">
+                    <p className="text-lg font-semibold text-primary">{selectedInterests.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Interests</p>
+                  </div>
+                  <div className="rounded-md bg-muted/40 p-2">
+                    <p className="text-lg font-semibold text-primary">{selectedInclusions.length}</p>
+                    <p className="text-[11px] text-muted-foreground">Inclusions</p>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
-        </div>
-
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full md:w-auto text-lg h-12 px-8"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating Itinerary...
-              </>
-            ) : (
-              'Generate My Tailor-Made Tour'
-            )}
-          </Button>
         </div>
       </form>
     </Form>

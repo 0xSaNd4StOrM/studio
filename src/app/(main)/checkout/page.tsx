@@ -38,6 +38,51 @@ import { TrustBadges } from '@/components/trust-badges';
 import { useEffect, useMemo, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { getCheckoutPaymentMethodAvailability } from '@/lib/supabase/agency-content';
+import type { CartItem } from '@/types';
+
+type RedirectStatus = 'idle' | 'preparing' | 'redirecting';
+
+const PROVISIONAL_ID_KEY_PREFIX = 'tourista:checkout:provisionalId:';
+const LAST_SUBMIT_KEY = 'tourista:checkout:lastSubmitAt';
+const RESUBMIT_GUARD_MS = 4000;
+
+function djb2Hash(input: string): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
+  }
+  // Convert to unsigned 32-bit and base36 for compactness.
+  return (hash >>> 0).toString(36);
+}
+
+function computeCartFingerprint(items: CartItem[], promoCodeValue: string | null): string {
+  const normalized = items.map((i) => ({
+    t: i.productType,
+    p: i.product.id,
+    k: i.packageId ?? null,
+    a: i.adults ?? null,
+    c: i.children ?? null,
+    q: i.quantity ?? null,
+    d: i.date ? new Date(i.date).toISOString() : null,
+  }));
+  return djb2Hash(JSON.stringify({ items: normalized, promo: promoCodeValue }));
+}
+
+function getOrCreateProvisionalBookingId(fingerprint: string): string {
+  const key = `${PROVISIONAL_ID_KEY_PREFIX}${fingerprint}`;
+  if (typeof window === 'undefined') {
+    return crypto.randomUUID();
+  }
+  try {
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) return existing;
+    const next = crypto.randomUUID();
+    window.sessionStorage.setItem(key, next);
+    return next;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -63,6 +108,8 @@ export default function CheckoutPage() {
     defaultMethod: PaymentMethod;
     onlineConfigured: boolean;
   } | null>(null);
+  const [redirectStatus, setRedirectStatus] = useState<RedirectStatus>('idle');
+  const [redirectMode, setRedirectMode] = useState<'online' | 'cash'>('online');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -173,6 +220,27 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Defense-in-depth: ignore rapid re-submits within a short window.
+    if (typeof window !== 'undefined') {
+      try {
+        const lastRaw = window.sessionStorage.getItem(LAST_SUBMIT_KEY);
+        const last = lastRaw ? Number(lastRaw) : 0;
+        if (Number.isFinite(last) && last > 0 && Date.now() - last < RESUBMIT_GUARD_MS) {
+          toast({
+            title: 'Hold on',
+            description: "Just a moment, we're still preparing your payment…",
+          });
+          return;
+        }
+        window.sessionStorage.setItem(LAST_SUBMIT_KEY, String(Date.now()));
+      } catch {
+        // sessionStorage unavailable; proceed without guard.
+      }
+    }
+
+    setRedirectMode(values.paymentMethod);
+    setRedirectStatus('preparing');
+
     try {
       const bookingPayload = {
         customerName: values.name,
@@ -191,11 +259,16 @@ export default function CheckoutPage() {
           title: 'Booking Confirmed',
           description: 'Your booking has been placed successfully.',
         });
-        window.location.href = `/checkout/success?merchantOrderId=${encodeURIComponent(bookingId)}`;
+        const successUrl = `/checkout/success?merchantOrderId=${encodeURIComponent(bookingId)}`;
+        setRedirectStatus('redirecting');
+        setTimeout(() => {
+          window.location.href = successUrl;
+        }, 400);
         return;
       }
 
-      const provisionalBookingId = crypto.randomUUID();
+      const fingerprint = computeCartFingerprint(cartItems, promoCode?.code ?? null);
+      const provisionalBookingId = getOrCreateProvisionalBookingId(fingerprint);
       const kashierAmountInEgp = convertTo(getFinalTotal(), 'EGP');
 
       const paymentUrl = await buildKashierHppUrl({
@@ -218,9 +291,16 @@ export default function CheckoutPage() {
         description: 'Complete your payment to confirm the booking.',
       });
 
-      window.location.href = paymentUrl;
+      // Note: provisional id remains in sessionStorage so that a back-and-resubmit
+      // reuses the same row (backend createBooking is idempotent on bookingId).
+      // The success page is responsible for clearing the key on confirmation.
+      setRedirectStatus('redirecting');
+      setTimeout(() => {
+        window.location.href = paymentUrl;
+      }, 400);
     } catch (error) {
       console.error('Error placing order:', error);
+      setRedirectStatus('idle');
       toast({
         title: 'Order Failed',
         description: 'There was an error placing your order. Please try again.',
@@ -322,6 +402,44 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-10">
+      {redirectStatus !== 'idle' ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-[100] grid place-items-center bg-background/95 backdrop-blur-sm"
+        >
+          <Card className="w-full max-w-md rounded-3xl border bg-card shadow-xl">
+            <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <Loader2 className="h-7 w-7 animate-spin text-primary" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  {redirectMode === 'cash'
+                    ? redirectStatus === 'preparing'
+                      ? 'Confirming your booking…'
+                      : 'Taking you to confirmation…'
+                    : redirectStatus === 'preparing'
+                      ? 'Securing your booking…'
+                      : 'Redirecting to secure payment…'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  {redirectMode === 'cash'
+                    ? 'Please don\u2019t close this tab while we finalize your reservation.'
+                    : 'Kashier is handling your payment securely. Please don\u2019t close or refresh this tab.'}
+                </p>
+              </div>
+              {redirectMode === 'online' ? (
+                <div className="flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>256-bit encrypted via Kashier</span>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
       <section className="relative overflow-hidden rounded-3xl border bg-card">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/10" />
         <div className="relative p-6 md:p-10">
@@ -489,9 +607,9 @@ export default function CheckoutPage() {
                     type="submit"
                     className="w-full"
                     size="lg"
-                    disabled={form.formState.isSubmitting}
+                    disabled={form.formState.isSubmitting || redirectStatus !== 'idle'}
                   >
-                    {form.formState.isSubmitting ? (
+                    {form.formState.isSubmitting || redirectStatus !== 'idle' ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
                     {t('checkout.placeOrder')}

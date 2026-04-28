@@ -24,10 +24,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, ArrowUpDown, FileDown } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, FileDown, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface ColumnsProps {
   onUpdateStatus: (bookingId: string, status: Booking['status']) => void;
@@ -140,10 +146,31 @@ export const columns = ({ onUpdateStatus, onDelete }: ColumnsProps): ColumnDef<B
       );
     },
     cell: ({ row }) => {
+      const duplicateGroupId = (row.original as { _duplicateGroupId?: string })
+        ._duplicateGroupId;
       return (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-1">
           <span className="font-medium">{row.original.customerName}</span>
           <span className="text-xs text-muted-foreground">{row.original.customerEmail}</span>
+          {duplicateGroupId && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="mt-0.5 w-fit gap-1 border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    Possible duplicate
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Same customer, tour, and date as another booking within 30 min — review before
+                  confirming.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       );
     },
