@@ -86,12 +86,47 @@ const HOME_CONTENT_TRANSLATABLE_FIELDS = [
 
 const AGENCY_SETTINGS_TRANSLATABLE_FIELDS = ['tagline', 'aboutUs', 'navLinks[].label'] as const;
 
+function normalizeHomeWhyChooseUsTitleForTranslation(title: string): string {
+  const withNormalizedLineBreaks = title
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/\r\n?/g, '\n');
+
+  const withoutHtmlTags = withNormalizedLineBreaks.replace(
+    /<\/?[a-z][\w:-]*(?:\s[^>]*)?>/gi,
+    ' '
+  );
+
+  const collapsedWhitespacePerLine = withoutHtmlTags
+    .split('\n')
+    .map((line) => line.replace(/[ \t\f\v]+/g, ' ').trim())
+    .join('\n');
+
+  return collapsedWhitespacePerLine.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function prepareHomeContentForTranslation(home: HomeContent): HomeContent {
+  const title = home?.whyChooseUs?.title;
+  if (typeof title !== 'string') return home;
+
+  const normalizedTitle = normalizeHomeWhyChooseUsTitleForTranslation(title);
+  if (normalizedTitle === title) return home;
+
+  return {
+    ...home,
+    whyChooseUs: {
+      ...home.whyChooseUs,
+      title: normalizedTitle,
+    },
+  };
+}
+
 export async function translateHomeContent(
   home: HomeContent,
   targetLang: string
 ): Promise<HomeContent> {
   if (targetLang === 'en') return home;
-  return translateObject(home, HOME_CONTENT_TRANSLATABLE_FIELDS, targetLang);
+  const normalizedHome = prepareHomeContentForTranslation(home);
+  return translateObject(normalizedHome, HOME_CONTENT_TRANSLATABLE_FIELDS, targetLang);
 }
 
 export type PageSeoSettings = {

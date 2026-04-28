@@ -81,7 +81,7 @@ export default async function MainLayout({
           }
         `}</style>
         <Header />
-        <main className="flex-grow container mx-auto px-4 pt-[84px] md:pt-[134px] pb-8">
+        <main className="flex-grow w-full overflow-x-hidden pt-[84px] md:pt-[134px] pb-8">
           {children}
         </main>
         <Footer />

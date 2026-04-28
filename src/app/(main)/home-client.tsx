@@ -129,12 +129,12 @@ const staggerContainer: Variants = {
 };
 
 const browseCategoryIcons: Record<BrowseCategoryIconKey, React.ReactNode> = {
-  mountain: <Mountain className="h-8 w-8 text-primary" />,
-  sailboat: <Sailboat className="h-8 w-8 text-primary" />,
-  building2: <Building2 className="h-8 w-8 text-primary" />,
-  utensils: <Utensils className="h-8 w-8 text-primary" />,
-  ferrisWheel: <FerrisWheel className="h-8 w-8 text-primary" />,
-  plane: <Plane className="h-8 w-8 text-primary" />,
+  mountain: <Mountain className="h-8 w-8" />,
+  sailboat: <Sailboat className="h-8 w-8" />,
+  building2: <Building2 className="h-8 w-8" />,
+  utensils: <Utensils className="h-8 w-8" />,
+  ferrisWheel: <FerrisWheel className="h-8 w-8" />,
+  plane: <Plane className="h-8 w-8" />,
 };
 
 function isBrowseCategoryIconKey(value: unknown): value is BrowseCategoryIconKey {
@@ -243,8 +243,9 @@ export default function HomePageClient({
   tourCategories,
   settings,
 }: HomePageClientProps) {
-  const { t } = useLanguage();
+  const { t, dir } = useLanguage();
   const { format } = useCurrency();
+  const isRtl = dir === 'rtl';
   const [testimonials, setTestimonials] = React.useState<Testimonial[]>([]);
   const tours = initialTours;
 
@@ -352,14 +353,14 @@ export default function HomePageClient({
       : tours.length;
 
   return (
-    <div className={cn(isSingleHotel && 'pb-20 lg:pb-0')}>
+    <div className={cn('overflow-x-clip', isSingleHotel && 'pb-20 lg:pb-0')}>
       {/* Hero Section */}
       {homeContent.visibility?.hero !== false && (
         <motion.section
           initial="hidden"
           animate="visible"
           variants={fadeIn}
-          className="relative min-h-[92vh] flex flex-col items-center justify-center overflow-hidden w-screen ml-[calc(50%-50vw)] -mt-[84px] md:-mt-[134px]"
+          className="relative min-h-[92vh] flex flex-col items-center justify-center overflow-hidden w-[100dvw] ml-[calc(50%-50dvw)] -mt-[84px] md:-mt-[134px]"
         >
           {/* Background: Video (H2.1) or Image Crossfade Slider */}
           {homeContent.hero.videoUrl ? (
@@ -418,7 +419,10 @@ export default function HomePageClient({
             {/* Title */}
             <motion.h1
               variants={fadeInUp}
-              className="font-headline text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold leading-[1.08] tracking-tight mb-5 drop-shadow-2xl max-w-5xl"
+              className={cn(
+                'text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold mb-5 drop-shadow-2xl max-w-5xl',
+                isRtl ? 'font-sans leading-[1.22] tracking-normal' : 'font-headline leading-[1.08] tracking-tight'
+              )}
               dangerouslySetInnerHTML={{ __html: homeContent.hero?.title ?? '' }}
             />
 
@@ -502,10 +506,18 @@ export default function HomePageClient({
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                           {/* Keyword */}
                           <div className="sm:col-span-4 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Search
+                              className={cn(
+                                'absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none',
+                                isRtl ? 'right-3' : 'left-3'
+                              )}
+                            />
                             <Input
                               placeholder={t('hero.searchTours')}
-                              className="pl-9 h-13 border-muted bg-gray-50 hover:bg-gray-100 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-primary transition-colors text-foreground"
+                              className={cn(
+                                'h-13 border-muted bg-gray-50 hover:bg-gray-100 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-primary transition-colors text-foreground',
+                                isRtl ? 'pr-9' : 'pl-9'
+                              )}
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -513,9 +525,19 @@ export default function HomePageClient({
                           </div>
                           {/* Destination */}
                           <div className="sm:col-span-3 relative">
-                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+                            <MapPin
+                              className={cn(
+                                'absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10',
+                                isRtl ? 'right-3' : 'left-3'
+                              )}
+                            />
                             <Select value={destination} onValueChange={setDestination}>
-                              <SelectTrigger className="pl-9 h-13 border-muted bg-gray-50 hover:bg-gray-100 text-foreground focus:ring-primary transition-colors">
+                              <SelectTrigger
+                                className={cn(
+                                  'h-13 border-muted bg-gray-50 hover:bg-gray-100 text-foreground focus:ring-primary transition-colors',
+                                  isRtl ? 'pr-9' : 'pl-9'
+                                )}
+                              >
                                 <SelectValue placeholder={t('nav.destination')} />
                               </SelectTrigger>
                               <SelectContent>
@@ -535,7 +557,12 @@ export default function HomePageClient({
                           </div>
                           {/* Tour Type */}
                           <div className="sm:col-span-3 relative">
-                            <ChevronDown className="absolute right-8 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+                            <ChevronDown
+                              className={cn(
+                                'absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10',
+                                isRtl ? 'left-8' : 'right-8'
+                              )}
+                            />
                             <Select value={tourType} onValueChange={setTourType}>
                               <SelectTrigger className="h-13 border-muted bg-gray-50 hover:bg-gray-100 text-foreground focus:ring-primary transition-colors">
                                 <SelectValue placeholder={t('hero.type')} />
@@ -562,7 +589,7 @@ export default function HomePageClient({
                               className="w-full h-13 font-bold shadow-md hover:scale-105 transition-transform rounded-lg text-base"
                               onClick={handleSearch}
                             >
-                              <Search className="h-4 w-4 mr-1.5" />
+                              <Search className={cn('h-4 w-4', isRtl ? 'ml-1.5' : 'mr-1.5')} />
                               {t('hero.search')}
                             </Button>
                           </div>
@@ -577,7 +604,7 @@ export default function HomePageClient({
                         transition={{ duration: 0.22 }}
                         className="bg-white rounded-b-2xl p-6 flex flex-col sm:flex-row items-center gap-5"
                       >
-                        <div className="flex-1 text-left">
+                        <div className={cn('flex-1', isRtl ? 'text-right' : 'text-left')}>
                           <p className="font-bold text-foreground text-base mb-1">
                             {t('hero.customTripTitle')}
                           </p>
@@ -1237,7 +1264,7 @@ export default function HomePageClient({
         homeContent.visibility?.seasonalPackages !== false &&
         homeContent.seasonalPackagesSection?.packages &&
         homeContent.seasonalPackagesSection.packages.length > 0 && (
-          <section className="py-12 md:py-20 w-screen ml-[calc(50%-50vw)] bg-gradient-to-b from-background to-primary/5">
+          <section className="py-12 md:py-20 w-[100dvw] ml-[calc(50%-50dvw)] bg-gradient-to-b from-background to-primary/5">
             <div className="container mx-auto px-4">
               <motion.div
                 initial="hidden"
@@ -1341,13 +1368,13 @@ export default function HomePageClient({
       !isHotelOnly &&
       !isSingleHotel &&
       (browseCategories.length > 0 || homeContent.browseCategory?.title) ? (
-        <section className="container mx-auto px-4 -mt-16 md:-mt-24 pb-12 md:pb-20 relative z-20">
+        <section className="container mx-auto px-4 -mt-6 md:-mt-10 pb-12 md:pb-20 relative z-20">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-100px' }}
             variants={fadeInUp}
-            className="bg-card rounded-xl md:rounded-2xl shadow-2xl p-6 md:p-10 border border-border/40"
+            className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-card/95 via-card to-muted/20 p-6 shadow-xl shadow-black/5 backdrop-blur-sm md:rounded-2xl md:p-10 md:shadow-2xl md:shadow-black/10"
           >
             <div className="text-center mb-6 md:mb-10">
               {homeContent.browseCategory?.title ? (
@@ -1374,15 +1401,15 @@ export default function HomePageClient({
                 >
                   <Link
                     href={`/tours?type=${encodeURIComponent(category.type)}`}
-                    className="flex flex-col items-center justify-center gap-3 md:gap-4 text-center group w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg py-2"
+                    className="group flex w-full flex-col items-center justify-center gap-3 rounded-xl border border-transparent bg-background/40 px-2 py-3 text-center transition-all duration-300 hover:border-primary/20 hover:bg-primary/5 hover:shadow-md focus-visible:border-primary/30 focus-visible:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:shadow-md md:gap-4 md:rounded-2xl md:px-3"
                     aria-label={`Browse ${category.label} tours`}
                   >
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center transition-all duration-300 group-hover:bg-primary group-hover:shadow-lg group-hover:scale-110 group-hover:[&>svg]:text-white">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border border-primary/15 bg-primary/5 text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-focus-visible:bg-primary group-focus-visible:text-primary-foreground group-focus-visible:shadow-lg md:h-20 md:w-20">
                       <div className="scale-75 md:scale-100">
                         {browseCategoryIcons[category.icon]}
                       </div>
                     </div>
-                    <span className="text-sm md:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <span className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover:text-primary group-focus-visible:text-primary md:text-base">
                       {category.label}
                     </span>
                   </Link>
@@ -1399,28 +1426,24 @@ export default function HomePageClient({
       homeContent.visibility?.hotelFeatures !== false ? (
         <HotelFeaturesSection data={homeContent.hotelFeatures} />
       ) : homeContent.visibility?.whyChooseUs !== false && homeContent.whyChooseUs ? (
-        <section className="container mx-auto px-4 py-12 md:py-20">
+        <section className="container mx-auto px-4 py-14 md:py-24">
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-100px' }}
             variants={staggerContainer}
-            className="grid md:grid-cols-2 gap-8 md:gap-16 items-center"
+            className="grid items-center gap-10 md:grid-cols-2 md:gap-16"
           >
             <motion.div variants={fadeInUp} className="order-2 md:order-1">
               {homeContent.whyChooseUs?.pretitle ? (
-                <p className="text-primary font-bold tracking-wide uppercase text-xs md:text-sm">
+                <p className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary md:text-sm">
                   {homeContent.whyChooseUs.pretitle}
                 </p>
               ) : null}
-              <h2 className="font-headline text-3xl md:text-5xl font-bold text-foreground mt-2 mb-6 leading-tight">
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: homeContent.whyChooseUs?.title ?? '',
-                  }}
-                />
+              <h2 className="mt-3 mb-6 whitespace-pre-line font-headline text-3xl font-bold leading-[1.15] text-foreground md:mb-8 md:text-5xl">
+                {homeContent.whyChooseUs?.title ?? ''}
               </h2>
-              <div className="space-y-6 md:space-y-8 mt-6 md:mt-8">
+              <div className="mt-6 space-y-4 md:mt-8 md:space-y-5">
                 {[
                   {
                     icon: <SafetyFirstIcon className="w-6 h-6 md:w-8 md:h-8" />,
@@ -1438,16 +1461,18 @@ export default function HomePageClient({
                   <motion.div
                     key={i}
                     variants={fadeInUp}
-                    className="flex items-start gap-4 md:gap-5 group"
+                    whileHover={{ y: -2 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                    className="group flex items-start gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm transition-colors duration-300 hover:border-primary/30 hover:bg-primary/[0.04] md:gap-5 md:p-5"
                   >
-                    <div className="bg-primary/10 p-3 md:p-4 rounded-2xl text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-all duration-300 group-hover:scale-105 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground">
                       {item.icon}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg md:text-xl text-foreground mb-1 md:mb-2">
+                    <div className="text-start">
+                      <h3 className="mb-1 text-lg font-bold text-foreground md:mb-2 md:text-xl">
                         {item.feat.title}
                       </h3>
-                      <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                      <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
                         {item.feat.description}
                       </p>
                     </div>
@@ -1458,35 +1483,44 @@ export default function HomePageClient({
 
             <motion.div
               variants={fadeInUp}
-              className="relative h-full min-h-[300px] md:min-h-[500px] rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl order-1 md:order-2"
+              className="relative order-1 md:order-2"
             >
-              {homeContent.whyChooseUs.imageUrl ? (
-                <Image
-                  src={homeContent.whyChooseUs.imageUrl}
-                  alt={homeContent.whyChooseUs.imageAlt || ''}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  className="hover:scale-105 transition-transform duration-700"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  placeholder="blur"
-                  blurDataURL={BLUR_DATA_URL}
-                  data-ai-hint="adventure travel"
-                />
-              ) : (
-                <div className="h-full w-full bg-muted" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
+              <div className="group relative isolate overflow-hidden rounded-2xl border border-border/50 bg-muted/10 shadow-2xl md:rounded-3xl">
+                <div className="relative min-h-[320px] md:min-h-[520px]">
+                  {homeContent.whyChooseUs.imageUrl ? (
+                    <Image
+                      src={homeContent.whyChooseUs.imageUrl}
+                      alt={homeContent.whyChooseUs.imageAlt || ''}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      placeholder="blur"
+                      blurDataURL={BLUR_DATA_URL}
+                      data-ai-hint="adventure travel"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-muted" />
+                  )}
+                </div>
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/30 to-transparent" />
+              </div>
               {homeContent.whyChooseUs.badgeValue && homeContent.whyChooseUs.badgeLabel ? (
                 <motion.div
-                  initial={{ opacity: 0, x: 50 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute -bottom-6 -right-6 md:-bottom-8 md:-right-8 bg-primary text-primary-foreground p-6 md:p-8 rounded-tl-3xl shadow-2xl w-48 md:w-64 text-center z-10"
+                  initial={{ opacity: 0, y: 18 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.45, duration: 0.5, ease: 'easeOut' }}
+                  className={cn(
+                    'absolute bottom-4 z-10 w-44 rounded-2xl border border-white/25 bg-background/90 p-4 text-center shadow-2xl backdrop-blur md:bottom-6 md:w-56 md:p-5',
+                    isRtl ? 'left-4 md:left-6' : 'right-4 md:right-6'
+                  )}
                 >
-                  <p className="text-3xl md:text-5xl font-bold font-headline mb-1">
+                  <p className="mb-1 font-headline text-3xl font-bold leading-none text-foreground md:text-5xl">
                     {homeContent.whyChooseUs.badgeValue}
                   </p>
-                  <p className="text-sm md:text-base font-medium opacity-90">
+                  <p className="text-sm font-medium text-muted-foreground md:text-base">
                     {homeContent.whyChooseUs.badgeLabel}
                   </p>
                 </motion.div>
@@ -1498,35 +1532,44 @@ export default function HomePageClient({
 
       {/* Popular Destinations Section - Only show if Tours are enabled */}
       {homeContent.visibility?.popularDestinations !== false && !isHotelOnly && (
-        <section className="container mx-auto px-4 py-12 md:py-20" id="tours">
+        <section className="container relative mx-auto overflow-hidden px-4 py-12 md:py-20" id="tours">
+          <div className="pointer-events-none absolute inset-x-0 top-16 h-48 rounded-[2rem] bg-gradient-to-r from-primary/10 via-primary/[0.07] to-transparent blur-3xl" />
           <motion.div
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
             variants={staggerContainer}
+            className="relative"
           >
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
-              <motion.div variants={fadeInUp}>
+            <div className="mb-8 flex flex-col gap-5 md:mb-10 md:flex-row md:items-end md:justify-between">
+              <motion.div variants={fadeInUp} className="max-w-3xl space-y-3">
                 {homeContent.popularDestinations?.pretitle ? (
-                  <p className="text-primary font-bold tracking-wide uppercase text-xs md:text-sm">
-                    {homeContent.popularDestinations.pretitle}
-                  </p>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary md:text-xs">
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{homeContent.popularDestinations.pretitle}</span>
+                  </div>
                 ) : null}
                 {homeContent.popularDestinations?.title ? (
-                  <h2 className="font-headline text-3xl md:text-5xl font-bold text-foreground mt-2">
+                  <h2 className="mt-1 max-w-2xl font-headline text-3xl font-bold leading-tight text-foreground md:text-5xl md:leading-[1.08]">
                     {homeContent.popularDestinations.title}
                   </h2>
                 ) : null}
               </motion.div>
-              <motion.div variants={fadeInUp}>
+              <motion.div variants={fadeInUp} className="w-full md:w-auto">
                 <Button
                   variant="outline"
-                  className="border-primary/20 hover:border-primary text-foreground hover:text-primary hover:bg-primary/5 rounded-full"
+                  className="group w-full rounded-full border-primary/30 bg-background/90 px-6 text-foreground shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
                   asChild
                 >
                   <Link href="/tours">
-                    {t('home.viewAllTours')} <ArrowRight className="ml-2 h-4 w-4" />
+                    {t('home.viewAllTours')}{' '}
+                    <ArrowRight
+                      className={cn(
+                        'h-4 w-4 transition-transform duration-300',
+                        isRtl ? 'mr-2 group-hover:-translate-x-0.5' : 'ml-2 group-hover:translate-x-0.5'
+                      )}
+                    />
                   </Link>
                 </Button>
               </motion.div>
@@ -1534,59 +1577,65 @@ export default function HomePageClient({
 
             {/* Category Filter Tabs */}
             {tourDestinations.length > 0 && (
-              <motion.div variants={fadeInUp} className="flex flex-wrap gap-2 mb-8">
-                <button
-                  onClick={() => setDestinationFilter('all')}
-                  className={cn(
-                    'px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 border',
-                    destinationFilter === 'all'
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25'
-                      : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-primary'
-                  )}
-                >
-                  {t('home.filterAll')}
-                </button>
-                {tourDestinations.slice(0, 6).map((dest) => (
-                  <button
-                    key={dest}
-                    onClick={() => setDestinationFilter(dest)}
-                    className={cn(
-                      'px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 border',
-                      destinationFilter === dest
-                        ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25'
-                        : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-primary'
-                    )}
-                  >
-                    {dest}
-                  </button>
-                ))}
+              <motion.div variants={fadeInUp} className="mb-8 md:mb-10">
+                <div className="-mx-4 px-4 md:mx-0 md:px-0">
+                  <div className="flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:overflow-visible md:pb-0">
+                    <button
+                      onClick={() => setDestinationFilter('all')}
+                      className={cn(
+                        'snap-start shrink-0 whitespace-nowrap rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                        destinationFilter === 'all'
+                          ? 'border-primary bg-primary text-primary-foreground shadow-[0_10px_24px_-12px_hsl(var(--primary))]'
+                          : 'border-border/80 bg-background/90 text-muted-foreground hover:border-primary/60 hover:bg-primary/5 hover:text-primary'
+                      )}
+                    >
+                      {t('home.filterAll')}
+                    </button>
+                    {tourDestinations.slice(0, 6).map((dest) => (
+                      <button
+                        key={dest}
+                        onClick={() => setDestinationFilter(dest)}
+                        className={cn(
+                          'snap-start shrink-0 whitespace-nowrap rounded-full border px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                          destinationFilter === dest
+                            ? 'border-primary bg-primary text-primary-foreground shadow-[0_10px_24px_-12px_hsl(var(--primary))]'
+                            : 'border-border/80 bg-background/90 text-muted-foreground hover:border-primary/60 hover:bg-primary/5 hover:text-primary'
+                        )}
+                      >
+                        {dest}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </motion.div>
             )}
 
             {/* Tours Carousel */}
             {tours.length > 0 ? (
               <motion.div variants={fadeInUp}>
-                <Carousel opts={{ align: 'start', loop: false }} className="w-full">
-                  <CarouselContent className="-ml-4">
-                    {tours
-                      .filter(
-                        (t) => destinationFilter === 'all' || t.destination === destinationFilter
-                      )
-                      .slice(0, popularToursCount)
-                      .map((tour) => (
-                        <CarouselItem
-                          key={tour.id}
-                          className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
-                        >
-                          <TourCard tour={tour} />
-                        </CarouselItem>
-                      ))}
-                  </CarouselContent>
-                  <div className="flex justify-end gap-3 mt-6">
-                    <CarouselPrevious className="static translate-y-0 h-11 w-11 border-primary/20 hover:bg-primary/5 hover:border-primary hover:text-primary transition-all rounded-full" />
-                    <CarouselNext className="static translate-y-0 h-11 w-11 border-primary/20 hover:bg-primary/5 hover:border-primary hover:text-primary transition-all rounded-full" />
-                  </div>
-                </Carousel>
+                <div className="rounded-3xl border border-primary/15 bg-gradient-to-b from-primary/[0.08] via-background to-background/95 p-4 shadow-[0_24px_64px_-48px_hsl(var(--foreground))] md:p-6 lg:p-8">
+                  <Carousel opts={{ align: 'start', loop: false }} className="w-full">
+                    <CarouselContent className="-ml-4">
+                      {tours
+                        .filter(
+                          (t) => destinationFilter === 'all' || t.destination === destinationFilter
+                        )
+                        .slice(0, popularToursCount)
+                        .map((tour) => (
+                          <CarouselItem
+                            key={tour.id}
+                            className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                          >
+                            <TourCard tour={tour} />
+                          </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    <div className="mt-7 flex items-center justify-end gap-3">
+                      <CarouselPrevious className="static h-11 w-11 translate-y-0 rounded-full border border-primary/30 bg-background/95 text-foreground shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-primary/30 disabled:hover:bg-background/95 disabled:hover:text-foreground" />
+                      <CarouselNext className="static h-11 w-11 translate-y-0 rounded-full border border-primary/30 bg-background/95 text-foreground shadow-sm transition-all duration-200 hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-primary/30 disabled:hover:bg-background/95 disabled:hover:text-foreground" />
+                    </div>
+                  </Carousel>
+                </div>
               </motion.div>
             ) : (
               <div className="text-center py-16 bg-muted/30 rounded-3xl border-2 border-dashed border-muted">
@@ -1645,87 +1694,92 @@ export default function HomePageClient({
 
       {/* ─── How It Works ─── */}
       {!isHotelOnly && (
-        <section className="w-screen ml-[calc(50%-50vw)] bg-gradient-to-b from-muted/30 to-background py-20 md:py-28">
+        <section className="w-[100dvw] ml-[calc(50%-50dvw)] bg-gradient-to-b from-background via-muted/35 to-background py-20 md:py-28">
           <div className="container mx-auto px-4">
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={staggerContainer}
-              className="text-center mb-14"
-            >
-              <motion.p
-                variants={fadeInUp}
-                className="text-primary font-bold tracking-wide uppercase text-xs md:text-sm"
-              >
-                {t('howItWorks.pretitle')}
-              </motion.p>
-              <motion.h2
-                variants={fadeInUp}
-                className="font-headline text-3xl md:text-5xl font-bold text-foreground mt-2"
-              >
-                {t('howItWorks.title')}
-              </motion.h2>
-              <motion.p
-                variants={fadeInUp}
-                className="text-muted-foreground mt-4 max-w-xl mx-auto text-base md:text-lg"
-              >
-                {t('howItWorks.subtitle')}
-              </motion.p>
-            </motion.div>
+            <div className="relative overflow-hidden rounded-[2rem] border border-primary/15 bg-background/90 px-6 py-10 shadow-xl shadow-primary/5 md:px-10 md:py-14">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/10 via-transparent to-transparent" />
 
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={staggerContainer}
-              className="grid grid-cols-1 md:grid-cols-3 gap-8 relative"
-            >
-              {/* Connecting line (desktop only) */}
-              <div className="hidden md:block absolute top-16 left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] h-0.5 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
-
-              {[
-                {
-                  step: '01',
-                  icon: <Compass className="h-8 w-8" />,
-                  title: t('howItWorks.step1Title'),
-                  desc: t('howItWorks.step1Desc'),
-                },
-                {
-                  step: '02',
-                  icon: <BadgeCheck className="h-8 w-8" />,
-                  title: t('howItWorks.step2Title'),
-                  desc: t('howItWorks.step2Desc'),
-                },
-                {
-                  step: '03',
-                  icon: <Camera className="h-8 w-8" />,
-                  title: t('howItWorks.step3Title'),
-                  desc: t('howItWorks.step3Desc'),
-                },
-              ].map((item) => (
-                <motion.div
-                  key={item.step}
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={staggerContainer}
+                className="relative z-10 mx-auto mb-12 max-w-3xl text-center md:mb-14"
+              >
+                <motion.p
                   variants={fadeInUp}
-                  className="flex flex-col items-center text-center group"
+                  className="text-primary font-bold tracking-wide uppercase text-xs md:text-sm"
                 >
-                  <div className="relative mb-6">
-                    <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary/20 group-hover:bg-primary group-hover:border-primary text-primary group-hover:text-primary-foreground flex items-center justify-center transition-all duration-300 shadow-lg">
-                      {item.icon}
+                  {t('howItWorks.pretitle')}
+                </motion.p>
+                <motion.h2
+                  variants={fadeInUp}
+                  className="font-headline mt-2 text-3xl font-bold text-foreground md:text-5xl"
+                >
+                  {t('howItWorks.title')}
+                </motion.h2>
+                <motion.p
+                  variants={fadeInUp}
+                  className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground md:text-lg"
+                >
+                  {t('howItWorks.subtitle')}
+                </motion.p>
+              </motion.div>
+
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={staggerContainer}
+                className="relative z-10 grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-6"
+              >
+                {/* Connecting line (desktop only) */}
+                <div className="pointer-events-none absolute inset-x-[11%] top-[3.4rem] z-0 hidden h-px bg-gradient-to-r from-primary/0 via-primary/35 to-primary/0 md:block" />
+
+                {[
+                  {
+                    step: '01',
+                    icon: <Compass className="h-8 w-8" />,
+                    title: t('howItWorks.step1Title'),
+                    desc: t('howItWorks.step1Desc'),
+                  },
+                  {
+                    step: '02',
+                    icon: <BadgeCheck className="h-8 w-8" />,
+                    title: t('howItWorks.step2Title'),
+                    desc: t('howItWorks.step2Desc'),
+                  },
+                  {
+                    step: '03',
+                    icon: <Camera className="h-8 w-8" />,
+                    title: t('howItWorks.step3Title'),
+                    desc: t('howItWorks.step3Desc'),
+                  },
+                ].map((item) => (
+                  <motion.div
+                    key={item.step}
+                    variants={fadeInUp}
+                    whileHover={{ y: -4 }}
+                    className="group relative z-10 rounded-3xl border border-primary/15 bg-background/85 p-6 text-start shadow-sm transition-all duration-300 hover:border-primary/35 hover:shadow-lg hover:shadow-primary/10"
+                  >
+                    <div className="mb-5 flex items-center justify-between gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary transition-all duration-300 group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-lg group-hover:shadow-primary/20">
+                        {item.icon}
+                      </div>
+                      <span className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-full border border-primary/20 bg-background px-3 text-xs font-bold tracking-[0.2em] text-primary transition-colors duration-300 group-hover:border-primary/35 group-hover:bg-primary/10">
+                        {item.step}
+                      </span>
                     </div>
-                    <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md">
-                      {item.step}
-                    </span>
-                  </div>
-                  <h3 className="font-headline text-xl font-bold text-foreground mb-3">
-                    {item.title}
-                  </h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed max-w-[240px]">
-                    {item.desc}
-                  </p>
-                </motion.div>
-              ))}
-            </motion.div>
+                    <h3 className="font-headline text-xl font-bold text-foreground md:text-2xl">
+                      {item.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+                      {item.desc}
+                    </p>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </div>
           </div>
         </section>
       )}
@@ -1881,7 +1935,7 @@ export default function HomePageClient({
 
       {/* Testimonials Section */}
       {homeContent.visibility?.testimonials !== false && (
-        <section className="w-screen ml-[calc(50%-50vw)] bg-muted/30 py-20 md:py-28">
+        <section className="w-[100dvw] ml-[calc(50%-50dvw)] bg-muted/30 py-20 md:py-28">
           <div className="container mx-auto px-4">
             <motion.div
               initial="hidden"
@@ -2342,7 +2396,7 @@ export default function HomePageClient({
       </section>
 
       {/* ─── Help CTA Banner ─── */}
-      <section className="w-screen ml-[calc(50%-50vw)] bg-gradient-to-r from-primary via-primary/90 to-accent py-16 md:py-20">
+      <section className="w-[100dvw] ml-[calc(50%-50dvw)] bg-gradient-to-r from-primary via-primary/90 to-accent py-16 md:py-20">
         <motion.div
           initial="hidden"
           whileInView="visible"
