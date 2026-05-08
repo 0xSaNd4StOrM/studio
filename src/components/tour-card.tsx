@@ -1,14 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 import type { Tour } from '@/types';
 import { useWishlist } from '@/hooks/use-wishlist';
 import { useCurrency } from '@/hooks/use-currency';
 import { useLanguage } from '@/hooks/use-language';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, MapPin, Star, Heart, ArrowRight, Check } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Clock, Star, Heart, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BLUR_DATA_URL } from '@/lib/blur-data-url';
 
@@ -25,7 +26,20 @@ interface TourCardProps {
   compareSelected?: boolean;
   onToggleCompare?: (tourId: string) => void;
   compareDisabled?: boolean;
+  /** Index for staggered entrance animations driven by the parent grid. */
+  index?: number;
 }
+
+const EASE_OUT_EXPO = [0.22, 1, 0.36, 1] as [number, number, number, number];
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 24 },
+  show: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: EASE_OUT_EXPO, delay: i * 0.05 },
+  }),
+};
 
 export function TourCard({
   tour,
@@ -34,6 +48,7 @@ export function TourCard({
   compareSelected = false,
   onToggleCompare,
   compareDisabled = false,
+  index = 0,
 }: TourCardProps) {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { format } = useCurrency();
@@ -64,17 +79,11 @@ export function TourCard({
       : t('tour.new');
 
   const isSoldOut = availabilityStatus?.status === 'soldout';
-
-  const snippet = (() => {
-    const desc = (tour.description ?? '').trim();
-    if (!desc) return '';
-    return desc.length > 140 ? `${desc.slice(0, 137)}…` : desc;
-  })();
-
-  const firstHighlight = Array.isArray(tour.highlights) ? tour.highlights[0] : undefined;
+  const isLimited = availabilityStatus?.status === 'limited';
 
   const handleFavoriteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     if (isFavorited) {
       removeFromWishlist(tour.id);
     } else {
@@ -88,189 +97,171 @@ export function TourCard({
     onToggleCompare(tour.id);
   };
 
-  const renderAvailabilityBadge = () => {
-    if (!availabilityStatus) return null;
-    if (availabilityStatus.status === 'available') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-          {t('tours.availabilityAvailable')}
-        </span>
-      );
-    }
-    if (availabilityStatus.status === 'limited') {
-      const label =
-        typeof availabilityStatus.spots === 'number'
-          ? t('tours.availabilityFewLeftCount').replace(
-              '{{count}}',
-              String(availabilityStatus.spots)
-            )
-          : t('tours.availabilityFewLeft');
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-          {label}
-        </span>
-      );
-    }
-    if (availabilityStatus.status === 'soldout') {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-          {t('tours.availabilitySoldOut')}
-        </span>
-      );
-    }
-    return null;
-  };
+  const indexLabel = String((index % 99) + 1).padStart(2, '0');
 
   return (
-    <Card
+    <motion.article
+      variants={cardVariants}
+      custom={index}
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: true, margin: '-80px' }}
       className={cn(
-        'group flex h-full flex-col overflow-hidden rounded-3xl border-border/60 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-500 ease-out hover:-translate-y-0.5 hover:border-border hover:shadow-[0_18px_40px_-20px_rgba(15,23,42,0.25)]',
-        isSoldOut && 'opacity-90',
-        compareSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+        'group relative flex h-full flex-col',
+        compareSelected && 'ring-2 ring-primary ring-offset-4 ring-offset-background rounded-[28px]'
       )}
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
-        <Link href={`/tours/${tour.slug}`} className="relative block h-full w-full">
+      <Link
+        href={`/tours/${tour.slug}`}
+        className="relative block overflow-hidden rounded-[24px] bg-muted"
+        aria-label={`View ${tour.name}`}
+      >
+        {/* Portrait image — boutique editorial proportions */}
+        <div className="relative aspect-[4/5] w-full overflow-hidden">
           {imageUrl ? (
             <Image
               src={imageUrl}
               alt={tour.name}
               fill
-              className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               data-ai-hint={`${tour.destination} ${(Array.isArray(tour.type) ? tour.type[0] : '') || 'travel'}`}
               placeholder="blur"
               blurDataURL={BLUR_DATA_URL}
               priority={false}
             />
           ) : (
-            <div className="h-full w-full bg-muted" />
+            <div className="h-full w-full bg-gradient-to-br from-muted to-secondary" />
           )}
-        </Link>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/35 to-transparent" />
-        <Badge
-          variant="secondary"
-          className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-foreground shadow-sm backdrop-blur"
-        >
-          <MapPin className="mr-1.5 h-3 w-3" />
-          {tour.destination}
-        </Badge>
-        <Button
-          variant="secondary"
-          size="icon"
-          className={cn(
-            'absolute right-3 top-3 h-9 w-9 rounded-full bg-white/95 text-foreground shadow-sm backdrop-blur hover:bg-white',
-            isFavorited && 'bg-red-50 text-red-600 hover:bg-red-50'
-          )}
-          onClick={handleFavoriteClick}
-          aria-label={isFavorited ? 'Remove from wishlist' : 'Add to wishlist'}
-          aria-pressed={isFavorited}
-          type="button"
-        >
-          <Heart className={cn('h-4 w-4', isFavorited && 'fill-current')} />
-        </Button>
-        {availabilityStatus &&
-          (availabilityStatus.status === 'limited' ||
-            availabilityStatus.status === 'soldout') && (
-            <div className="absolute bottom-3 right-3">{renderAvailabilityBadge()}</div>
-          )}
-        {compareEnabled && (
-          <label
-            className={cn(
-              'absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur',
-              compareDisabled && !compareSelected && 'opacity-60'
-            )}
-          >
-            <Checkbox
-              checked={compareSelected}
-              disabled={compareDisabled && !compareSelected}
-              onCheckedChange={handleCompareChange}
-              aria-label={t('tours.compareAdd')}
-            />
-            {compareSelected ? t('tours.compareSelected') : t('tours.compareAdd')}
-          </label>
-        )}
-      </div>
 
-      <CardContent className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5" />
-            {durationLabel}
-          </span>
-          <span className="text-border" aria-hidden>
-            ·
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-            <span className="font-semibold text-foreground">{ratingLabel}</span>
-          </span>
-          {availabilityStatus?.status === 'available' && (
-            <>
-              <span className="text-border" aria-hidden>
-                ·
-              </span>
-              <span className="text-emerald-700">{t('tours.availabilityAvailable')}</span>
-            </>
-          )}
-        </div>
+          {/* Permanent base gradient for text legibility */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/10" />
 
-        <h3 className="font-headline text-xl font-semibold leading-tight tracking-tight">
-          <Link
-            href={`/tours/${tour.slug}`}
-            className="line-clamp-2 transition-colors hover:text-primary"
-            title={tour.name}
-          >
-            {tour.name}
-          </Link>
-        </h3>
+          {/* Hover dim — deepens on hover for cinematic feel */}
+          <div className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-500 group-hover:bg-black/20" />
 
-        {snippet && (
-          <p
-            className="line-clamp-2 text-sm leading-relaxed text-muted-foreground"
-            title={tour.description}
-          >
-            {snippet}
-          </p>
-        )}
-
-        {firstHighlight && (
-          <div className="flex flex-wrap gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2.5 py-1 text-xs text-muted-foreground">
-              <Check className="h-3 w-3" />
-              <span className="line-clamp-1 max-w-[220px]">{firstHighlight}</span>
-            </span>
+          {/* Top-left index numeral, editorial style */}
+          <div className="pointer-events-none absolute left-5 top-5 text-[11px] font-medium uppercase tracking-[0.32em] text-white/70">
+            № {indexLabel}
           </div>
-        )}
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/60 pt-4">
-          <div className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {t('featured.from')}
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold tracking-tight text-foreground">
-                {startingPrice != null ? format(startingPrice) : t('tour.contactUs')}
-              </span>
-              {startingPrice != null && (
-                <span className="text-xs text-muted-foreground">{t('tour.perPerson')}</span>
+          {/* Top-right wishlist + availability stack */}
+          <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-10 w-10 rounded-full bg-white/15 text-white backdrop-blur-md transition-all hover:bg-white/30 hover:scale-110',
+                isFavorited && 'bg-white text-rose-600 hover:bg-white'
               )}
+              onClick={handleFavoriteClick}
+              aria-label={isFavorited ? 'Remove from wishlist' : 'Add to wishlist'}
+              aria-pressed={isFavorited}
+              type="button"
+            >
+              <Heart className={cn('h-4 w-4', isFavorited && 'fill-current')} />
+            </Button>
+            {isLimited && (
+              <span className="rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-950 shadow">
+                {availabilityStatus?.status === 'limited' && availabilityStatus.spots
+                  ? `${availabilityStatus.spots} ${t('tours.availabilityFewLeft').toLowerCase()}`
+                  : t('tours.availabilityFewLeft')}
+              </span>
+            )}
+            {isSoldOut && (
+              <span className="rounded-full bg-rose-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white shadow">
+                {t('tours.availabilitySoldOut')}
+              </span>
+            )}
+          </div>
+
+          {/* Compare checkbox stays bottom-right of image */}
+          {compareEnabled && (
+            <label
+              className={cn(
+                'absolute bottom-4 right-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-white backdrop-blur-md',
+                compareDisabled && !compareSelected && 'opacity-60'
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={compareSelected}
+                disabled={compareDisabled && !compareSelected}
+                onCheckedChange={handleCompareChange}
+                aria-label={t('tours.compareAdd')}
+                className="border-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+              />
+              {compareSelected ? t('tours.compareSelected') : t('tours.compareAdd')}
+            </label>
+          )}
+
+          {/* Overlaid editorial info — destination + title sit ON the image */}
+          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 p-6 text-white">
+            <div className="flex items-center gap-3">
+              <span className="h-px w-8 bg-primary" aria-hidden />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/85">
+                {tour.destination}
+              </span>
+            </div>
+            <h3 className="font-headline text-[26px] font-medium leading-[1.05] tracking-tight transition-transform duration-500 group-hover:-translate-y-0.5 sm:text-[28px]">
+              <span className="line-clamp-2">{tour.name}</span>
+            </h3>
+
+            {/* Slide-up reveal: meta and CTA fade in on hover */}
+            <div className="flex items-end justify-between gap-3 pt-1">
+              <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/85">
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" />
+                  {durationLabel}
+                </span>
+                <span className="text-white/40" aria-hidden>
+                  ·
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-primary text-primary" />
+                  {ratingLabel}
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white opacity-0 transition-all duration-500 group-hover:translate-x-0 group-hover:opacity-100 -translate-x-2">
+                {t('tours.details')}
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </span>
             </div>
           </div>
-          <Button
-            asChild
-            className={cn(
-              'shrink-0 rounded-full px-5 transition-transform group-hover:translate-x-0.5',
-              isSoldOut && 'opacity-60'
-            )}
-            aria-disabled={isSoldOut}
-          >
-            <Link href={`/tours/${tour.slug}`}>
-              {t('tours.details')} <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </Link>
+
+      {/* Below-image price block, serif numerals, gold accent line */}
+      <div className="mt-5 flex items-center justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+            {t('featured.from')}
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="font-headline text-3xl font-medium tracking-tight text-foreground">
+              {startingPrice != null ? format(startingPrice) : t('tour.contactUs')}
+            </span>
+            {startingPrice != null && (
+              <span className="text-xs italic text-muted-foreground">/ {t('tour.perPerson')}</span>
+            )}
+          </div>
+          <div className="mt-2 h-px w-10 bg-primary transition-all duration-500 group-hover:w-20" />
+        </div>
+        <Button
+          asChild
+          variant="outline"
+          className={cn(
+            'shrink-0 rounded-none border-0 border-b-2 border-foreground bg-transparent px-0 pb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-foreground transition-all hover:border-primary hover:bg-transparent hover:text-primary',
+            isSoldOut && 'opacity-60'
+          )}
+          aria-disabled={isSoldOut}
+        >
+          <Link href={`/tours/${tour.slug}`}>
+            {t('tours.details')}
+            <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+          </Link>
+        </Button>
+      </div>
+    </motion.article>
   );
 }

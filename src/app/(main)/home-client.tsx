@@ -383,10 +383,13 @@ export default function HomePageClient({
               <motion.div
                 key={heroImages[activeHeroImageIndex]}
                 className="absolute inset-0"
-                initial={{ opacity: 0, scale: 1.04 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 1.08 }}
+                animate={{ opacity: 1, scale: 1.0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 1.2, ease: 'easeOut' }}
+                transition={{
+                  opacity: { duration: 1.4, ease: 'easeOut' },
+                  scale: { duration: 14, ease: 'linear' },
+                }}
               >
                 <Image
                   src={heroImages[activeHeroImageIndex]}
@@ -423,18 +426,27 @@ export default function HomePageClient({
             <motion.h1
               variants={fadeInUp}
               className={cn(
-                'mb-6 max-w-5xl text-balance text-4xl font-bold drop-shadow-2xl sm:text-5xl md:text-7xl lg:text-[5.5rem]',
+                'mb-6 max-w-5xl text-balance text-4xl font-medium drop-shadow-2xl sm:text-5xl md:text-7xl lg:text-[5.75rem]',
                 isRtl
                   ? 'font-sans leading-[1.18] tracking-normal'
-                  : 'font-headline leading-[1.05] tracking-[-0.02em]'
+                  : 'font-headline leading-[1.02] tracking-[-0.025em]'
               )}
               dangerouslySetInnerHTML={{ __html: homeContent.hero?.title ?? '' }}
+            />
+
+            {/* Animated gold underline drawing under the title */}
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 1.1, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mb-8 h-[2px] w-24 origin-left bg-primary"
+              aria-hidden
             />
 
             {/* Subtitle */}
             <motion.p
               variants={fadeInUp}
-              className="mb-10 max-w-2xl text-pretty text-base font-normal leading-relaxed text-white/85 drop-shadow md:text-xl"
+              className="mb-10 max-w-2xl text-pretty text-base font-light leading-relaxed text-white/90 drop-shadow md:text-xl"
             >
               {homeContent.hero?.subtitle}
             </motion.p>
@@ -682,6 +694,22 @@ export default function HomePageClient({
               ))}
             </div>
           )}
+
+          {/* Scroll cue — calmly bouncing chevron */}
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+            className="absolute inset-x-0 bottom-6 z-30 flex flex-col items-center gap-2 text-white/80"
+            aria-hidden
+          >
+            <span className="text-[10px] font-semibold uppercase tracking-[0.32em]">Scroll</span>
+            <motion.span
+              animate={{ y: [0, 6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="block h-8 w-px bg-gradient-to-b from-white/80 to-transparent"
+            />
+          </motion.div>
         </motion.section>
       )}
 

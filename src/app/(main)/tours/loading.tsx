@@ -4,10 +4,12 @@ import { TourCardSkeleton } from '@/components/tour-card-skeleton';
 export default function ToursLoading() {
   return (
     <div className="space-y-8">
-      {/* Page heading */}
-      <div className="space-y-2 text-center">
-        <Skeleton className="h-10 w-64 mx-auto" />
-        <Skeleton className="h-5 w-80 mx-auto" />
+      {/* Page heading — editorial */}
+      <div className="mx-auto max-w-3xl space-y-5 py-8 text-center">
+        <Skeleton className="mx-auto h-3 w-40 rounded-full" />
+        <Skeleton className="mx-auto h-14 w-3/4" />
+        <Skeleton className="mx-auto h-5 w-80" />
+        <Skeleton className="mx-auto h-px w-24" />
       </div>
 
       {/* Filter bar skeleton */}
@@ -40,7 +42,7 @@ export default function ToursLoading() {
       <Skeleton className="h-4 w-40" />
 
       {/* Tour cards grid — 8 skeleton cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <TourCardSkeleton key={i} />
         ))}

@@ -1,37 +1,27 @@
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function TourCardSkeleton() {
   return (
-    <Card className="flex h-full flex-col overflow-hidden rounded-3xl border-border/60 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
+    <div className="flex h-full flex-col">
+      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[24px] bg-muted">
         <Skeleton className="h-full w-full" />
-        <div className="absolute left-3 top-3">
-          <Skeleton className="h-6 w-24 rounded-full" />
+        <div className="absolute right-4 top-4">
+          <Skeleton className="h-10 w-10 rounded-full" />
         </div>
-        <div className="absolute right-3 top-3">
-          <Skeleton className="h-9 w-9 rounded-full" />
+        <div className="absolute inset-x-0 bottom-0 space-y-3 p-6">
+          <Skeleton className="h-2.5 w-24 rounded-full bg-white/30" />
+          <Skeleton className="h-7 w-4/5 bg-white/30" />
+          <Skeleton className="h-3 w-1/2 bg-white/20" />
         </div>
       </div>
-
-      <CardContent className="flex flex-1 flex-col gap-3 p-5">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-3.5 w-16" />
-          <Skeleton className="h-3.5 w-12" />
+      <div className="mt-5 flex items-end justify-between gap-3 px-1">
+        <div className="space-y-2">
+          <Skeleton className="h-2.5 w-12" />
+          <Skeleton className="h-8 w-28" />
+          <Skeleton className="h-px w-10" />
         </div>
-
-        <Skeleton className="h-6 w-4/5" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/5" />
-
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/60 pt-4">
-          <div className="space-y-1.5">
-            <Skeleton className="h-3 w-10" />
-            <Skeleton className="h-7 w-24" />
-          </div>
-          <Skeleton className="h-10 w-28 rounded-full" />
-        </div>
-      </CardContent>
-    </Card>
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
   );
 }

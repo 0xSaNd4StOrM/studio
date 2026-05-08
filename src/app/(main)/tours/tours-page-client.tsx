@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -182,20 +183,46 @@ export function ToursPageClient({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   return (
-    <div className="container mx-auto px-4 py-10 pb-28 md:py-14 md:pb-12">
-      <div className="space-y-10">
-        <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
-            Curated journeys
-          </span>
-          <h1 className="font-headline text-4xl font-semibold tracking-tight md:text-5xl">
-            {t('tours.title')}
+    <div className="container mx-auto px-4 py-12 pb-28 md:py-20 md:pb-16">
+      <div className="space-y-12">
+        {/* Editorial hero header */}
+        <motion.header
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto max-w-3xl text-center"
+        >
+          <div className="flex items-center justify-center gap-3 text-[10px] font-semibold uppercase tracking-[0.32em] text-primary">
+            <span className="h-px w-10 bg-primary" aria-hidden />
+            <span>The Collection</span>
+            <span className="h-px w-10 bg-primary" aria-hidden />
+          </div>
+          <h1 className="mt-6 font-headline text-5xl font-medium leading-[1.05] tracking-[-0.02em] text-foreground sm:text-6xl md:text-7xl">
+            <motion.span
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+              className="block"
+            >
+              {t('tours.title')}
+            </motion.span>
           </h1>
-          <p className="text-base text-muted-foreground md:text-lg">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.25 }}
+            className="mt-6 text-balance text-base italic text-muted-foreground md:text-lg"
+          >
             {t('tours.subtitle')}
-          </p>
-        </div>
+          </motion.p>
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.9, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto mt-8 h-px w-24 origin-center bg-foreground/30"
+            aria-hidden
+          />
+        </motion.header>
 
         {/* Sort presets */}
         <SortPresetRail activeSort={sort} onChange={(value) => navigate({ sort: value || null })} />
