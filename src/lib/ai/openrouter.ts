@@ -2,9 +2,6 @@ import { z } from 'zod';
 
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_OPENROUTER_FREE_MODELS = [
-  'minimax/minimax-m2.5:free',
-  'google/gemma-4-31b-it:free',
-  'z-ai/glm-4.5-air:free',
   'openai/gpt-oss-120b:free',
 ];
 
