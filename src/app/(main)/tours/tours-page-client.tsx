@@ -182,11 +182,19 @@ export function ToursPageClient({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-28 md:pb-8">
-      <div className="space-y-8">
-        <div className="space-y-2 text-center">
-          <h1 className="text-4xl font-bold font-headline">{t('tours.title')}</h1>
-          <p className="text-muted-foreground">{t('tours.subtitle')}</p>
+    <div className="container mx-auto px-4 py-10 pb-28 md:py-14 md:pb-12">
+      <div className="space-y-10">
+        <div className="mx-auto max-w-2xl space-y-3 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+            Curated journeys
+          </span>
+          <h1 className="font-headline text-4xl font-semibold tracking-tight md:text-5xl">
+            {t('tours.title')}
+          </h1>
+          <p className="text-base text-muted-foreground md:text-lg">
+            {t('tours.subtitle')}
+          </p>
         </div>
 
         {/* Sort presets */}

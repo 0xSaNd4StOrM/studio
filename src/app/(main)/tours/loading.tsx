@@ -40,7 +40,7 @@ export default function ToursLoading() {
       <Skeleton className="h-4 w-40" />
 
       {/* Tour cards grid — 8 skeleton cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <TourCardSkeleton key={i} />
         ))}

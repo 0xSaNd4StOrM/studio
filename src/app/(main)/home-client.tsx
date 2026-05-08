@@ -405,15 +405,15 @@ export default function HomePageClient({
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700" />
           )}
 
-          {/* Gradient overlays */}
-          <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/55 via-black/25 to-black/70" />
-          <div className="absolute inset-0 z-10 bg-gradient-to-r from-black/20 via-transparent to-black/20" />
+          {/* Gradient overlays — softer for a calmer, more luxurious feel */}
+          <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/45 via-black/15 to-black/65" />
+          <div className="absolute inset-0 z-10 bg-gradient-to-r from-black/15 via-transparent to-black/15" />
 
           {/* Main Content */}
           <div className="relative z-20 container mx-auto px-4 pt-24 md:pt-40 pb-16 flex flex-col items-center text-center text-white">
             {/* Eyebrow badge */}
-            <motion.div variants={fadeInUp} className="mb-5">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 backdrop-blur-md px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-white/90 shadow">
+            <motion.div variants={fadeInUp} className="mb-6">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/95 shadow-sm backdrop-blur-md">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 {isSingleHotel ? t('home.luxuryStays') : t('hero.discover')}
               </span>
@@ -423,10 +423,10 @@ export default function HomePageClient({
             <motion.h1
               variants={fadeInUp}
               className={cn(
-                'text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold mb-5 drop-shadow-2xl max-w-5xl',
+                'mb-6 max-w-5xl text-balance text-4xl font-bold drop-shadow-2xl sm:text-5xl md:text-7xl lg:text-[5.5rem]',
                 isRtl
-                  ? 'font-sans leading-[1.22] tracking-normal'
-                  : 'font-headline leading-[1.08] tracking-tight'
+                  ? 'font-sans leading-[1.18] tracking-normal'
+                  : 'font-headline leading-[1.05] tracking-[-0.02em]'
               )}
               dangerouslySetInnerHTML={{ __html: homeContent.hero?.title ?? '' }}
             />
@@ -434,7 +434,7 @@ export default function HomePageClient({
             {/* Subtitle */}
             <motion.p
               variants={fadeInUp}
-              className="mb-10 max-w-2xl text-base md:text-xl font-medium text-white/85 leading-relaxed drop-shadow"
+              className="mb-10 max-w-2xl text-pretty text-base font-normal leading-relaxed text-white/85 drop-shadow md:text-xl"
             >
               {homeContent.hero?.subtitle}
             </motion.p>

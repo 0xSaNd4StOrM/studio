@@ -22,7 +22,7 @@ export function ToursClient({
 }: ToursClientProps) {
   const limitReached = selectedCompareIds.length >= compareLimit;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-7 xl:grid-cols-4">
       {tours.map((tour) => {
         const selected = selectedCompareIds.includes(tour.id);
         return (
