@@ -72,18 +72,73 @@ export type UpsellTargeting = {
   tourIds?: string[];
 };
 
+/** How an addon's unit price is interpreted at booking time. */
+export type AddonPricingMode = 'flat' | 'per_person' | 'per_hour' | 'per_person_per_hour';
+
+/** Which quantity controls (pax stepper, hours stepper) the picker shows. */
+export type AddonQuantityMode = 'none' | 'pax' | 'hours' | 'pax_and_hours';
+
+/** Where an addon should surface in the booking flow. */
+export type AddonPlacement = {
+  match: 'any' | 'all';
+  tourIds: string[];
+  destinations: string[];
+  roomTypeIds: string[];
+  hotelIds: string[];
+  /** When true, the addon appears in the cart's "Suggested services" panel. */
+  showInCart: boolean;
+};
+
 export type UpsellItem = {
   id: string;
   name: string;
   description?: string;
   price: number;
   variants?: UpsellVariant[];
+  /** @deprecated since 2026-05-08, prefer `placement`. Kept so legacy admin
+   * data still hydrates the cart targeting check until backfill completes. */
   targeting?: UpsellTargeting | null;
   type: 'service' | 'tour_addon';
   relatedTourId?: string | null; // uuid
-  imageUrl?: string; // New: URL for the upsell item image
+  imageUrl?: string;
   isActive: boolean;
   createdAt: string;
+  pricingMode: AddonPricingMode;
+  quantityMode: AddonQuantityMode;
+  minPax?: number | null;
+  maxPax?: number | null;
+  minHours?: number | null;
+  maxHours?: number | null;
+  defaultHours?: number | null;
+  currency: string;
+  sortOrder: number;
+  placement: AddonPlacement;
+};
+
+/**
+ * Snapshot of a single addon attached to a cart line. Replaces the old
+ * `RoomCartAddon` shape and is also used inside `TourCartItem.addons`.
+ *
+ * `totalPrice` is computed at attach time so the cart subtotal is stable
+ * across reloads even if the underlying upsell row's price changes; the
+ * server re-prices everything at checkout for safety.
+ */
+export type CartAddon = {
+  upsellItemId: string;
+  variantId?: string;
+  name: string;
+  variantName?: string;
+  /** Effective unit price (variant override when present, else parent price). */
+  unitPrice: number;
+  pricingMode: AddonPricingMode;
+  /** Number of guests this addon covers (when quantityMode includes `pax`). */
+  pax?: number;
+  /** Hours billed (when quantityMode includes `hours`). */
+  hours?: number;
+  /** Multiplier for `flat` pricing or fallback when neither pax nor hours apply. */
+  quantity: number;
+  totalPrice: number;
+  currency: string;
 };
 
 export type TourDateAvailability = {
@@ -140,6 +195,8 @@ export type TourCartItem = {
   children?: number;
   date?: Date;
   quantity?: never;
+  /** Optional add-ons attached to this tour line (airport pickup, etc). */
+  addons?: CartAddon[];
 };
 
 export type UpsellCartItem = {

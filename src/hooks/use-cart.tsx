@@ -10,7 +10,16 @@ import React, {
 } from 'react';
 import { validatePromoCode } from '@/lib/supabase/promo-codes';
 import { placeCartHold, releaseCartHold } from '@/lib/supabase/cart-holds';
-import type { Tour, CartItem, UpsellItem, PromoCode, RoomCartItem, RoomCartAddon } from '@/types';
+import type {
+  Tour,
+  CartItem,
+  UpsellItem,
+  PromoCode,
+  RoomCartItem,
+  RoomCartAddon,
+  CartAddon,
+  TourCartItem,
+} from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -18,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
  * older payloads cannot be safely consumed. On load we drop any item whose
  * `productType` is not one of the currently-supported variants.
  */
-const CART_STORAGE_VERSION = 'v2';
+const CART_STORAGE_VERSION = 'v3';
 
 /** Best-effort cart hold TTL in minutes; mirrored on the server in `placeCartHold`. */
 const CART_HOLD_TTL_MINUTES = 15;
@@ -79,9 +88,16 @@ interface CartContextType {
     date?: Date,
     quantity?: number,
     packageId?: string,
-    packageName?: string
+    packageName?: string,
+    addons?: CartAddon[]
   ) => void;
   removeFromCart: (productId: string, productType: 'tour' | 'upsell', packageId?: string) => void;
+  /** Replace the addons attached to a tour line in-place. */
+  updateTourItemAddons: (
+    productId: string,
+    packageId: string | undefined,
+    addons: CartAddon[]
+  ) => void;
   /** Add a fully-priced room line item to the cart. Returns the new lineId. */
   addRoomItem: (input: AddRoomItemInput) => string;
   /** Patch a room line item by `lineId`. */
@@ -156,13 +172,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           setCartItems(parsed.filter(isSupportedCartItem) as CartItem[]);
         }
       } else {
-        // One-shot best-effort migration from the v1 key (tour/upsell only).
-        const legacy = localStorage.getItem(`${host}-cart`);
-        if (legacy) {
+        // One-shot best-effort migration from older keys. v2 carts are
+        // structurally compatible with v3 — tour items just lack the
+        // optional `addons` array, which the cart re-fetches on demand.
+        const legacyKeys = [`${host}-cart-v2`, `${host}-cart`];
+        for (const key of legacyKeys) {
+          const legacy = localStorage.getItem(key);
+          if (!legacy) continue;
           try {
             const parsedLegacy: unknown = JSON.parse(legacy);
             if (Array.isArray(parsedLegacy)) {
               setCartItems(parsedLegacy.filter(isSupportedCartItem) as CartItem[]);
+              break;
             }
           } catch {
             // ignore malformed legacy payload
@@ -203,7 +224,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       date?: Date,
       quantity?: number,
       packageId?: string,
-      packageName?: string
+      packageName?: string,
+      addons?: CartAddon[]
     ) => {
       let toastMessage: { title: string; description: string } | null = null;
       setCartItems((prevItems) => {
@@ -215,6 +237,22 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             (item.packageId ?? 'base') === (packageId ?? 'base')
         );
         if (existingItem) {
+          // If the user re-submits with addons, attach them to the existing
+          // line instead of bouncing the click — common when guests adjust
+          // their selection on the tour page after first add.
+          if (productType === 'tour' && addons && addons.length > 0) {
+            toastMessage = {
+              title: 'Cart updated',
+              description: `Add-ons updated for ${product.name}.`,
+            };
+            return prevItems.map((item) =>
+              item.product.id === product.id &&
+              item.productType === 'tour' &&
+              (item.packageId ?? 'base') === (packageId ?? 'base')
+                ? ({ ...(item as TourCartItem), addons } as CartItem)
+                : item
+            );
+          }
           toastMessage = {
             title: 'Already in Cart',
             description: `${product.name} ${packageName ? `(${packageName})` : ''} is already in your cart.`,
@@ -235,6 +273,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
                 adults,
                 children,
                 date,
+                addons,
               }
             : {
                 productType: 'upsell',
@@ -250,6 +289,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     [toast]
+  );
+
+  const updateTourItemAddons = useCallback(
+    (productId: string, packageId: string | undefined, addons: CartAddon[]) => {
+      setCartItems((prev) =>
+        prev.map((item) => {
+          if (item.productType !== 'tour') return item;
+          if (item.product.id !== productId) return item;
+          if ((item.packageId ?? 'base') !== (packageId ?? 'base')) return item;
+          return { ...item, addons } satisfies TourCartItem;
+        })
+      );
+    },
+    []
   );
 
   const removeFromCart = useCallback(
@@ -498,7 +551,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const itemTotal =
           (item.adults ?? 0) * priceTier.pricePerAdult +
           (item.children ?? 0) * priceTier.pricePerChild;
-        return total + itemTotal;
+        const addonsTotal = (item.addons ?? []).reduce((acc, a) => acc + (a.totalPrice ?? 0), 0);
+        return total + itemTotal + addonsTotal;
       } else if (item.productType === 'upsell') {
         const upsellItem = item.product;
         const variant =
@@ -584,6 +638,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         promoCode,
         addToCart,
         removeFromCart,
+        updateTourItemAddons,
         addRoomItem,
         updateRoomItem,
         removeRoomItem,

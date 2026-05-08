@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import type { Tour, TourDateAvailability } from '@/types';
+import type { Tour, TourDateAvailability, UpsellItem } from '@/types';
 import Image from 'next/image';
 import { BLUR_DATA_URL } from '@/lib/blur-data-url';
 import { useCart } from '@/hooks/use-cart';
@@ -34,13 +34,23 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Calendar } from '@/components/ui/calendar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  AddonPicker,
+  selectionToCartAddons,
+  type AddonSelectionMap,
+} from '@/components/addons/addon-picker';
 
 interface TourDetailsClientProps {
   tour: Tour;
   availability?: TourDateAvailability[];
+  addons?: UpsellItem[];
 }
 
-export function TourDetailsClient({ tour, availability = [] }: TourDetailsClientProps) {
+export function TourDetailsClient({
+  tour,
+  availability = [],
+  addons = [],
+}: TourDetailsClientProps) {
   const { addToCart } = useCart();
   const { format } = useCurrency();
   const { t } = useLanguage();
@@ -50,6 +60,7 @@ export function TourDetailsClient({ tour, availability = [] }: TourDetailsClient
   const [selectedPackageId, setSelectedPackageId] = useState<string | undefined>(
     tour.packages && tour.packages.length > 0 ? tour.packages[0].id : undefined
   );
+  const [addonSelection, setAddonSelection] = useState<AddonSelectionMap>({});
 
   // Build blocked dates set and limited-spots modifiers from availability data
   const blockedDatesSet = useMemo(() => {
@@ -122,16 +133,38 @@ export function TourDetailsClient({ tour, availability = [] }: TourDetailsClient
     );
   }, [tour, totalPeople, currentPackage]);
 
-  const totalPrice = useMemo(() => {
+  const tourBasePrice = useMemo(() => {
     if (!currentPriceTier) return 0;
     const adultPrice = adults * currentPriceTier.pricePerAdult;
     const childPrice = children * currentPriceTier.pricePerChild;
     return adultPrice + childPrice;
   }, [adults, children, currentPriceTier]);
 
+  const cartAddons = useMemo(
+    () => selectionToCartAddons(addons, addonSelection),
+    [addons, addonSelection]
+  );
+
+  const addonsTotal = useMemo(
+    () => cartAddons.reduce((acc, a) => acc + a.totalPrice, 0),
+    [cartAddons]
+  );
+
+  const totalPrice = tourBasePrice + addonsTotal;
+
   const handleBooking = () => {
     if (tour && date) {
-      addToCart(tour, 'tour', adults, children, date, 1, selectedPackageId, currentPackage?.name);
+      addToCart(
+        tour,
+        'tour',
+        adults,
+        children,
+        date,
+        1,
+        selectedPackageId,
+        currentPackage?.name,
+        cartAddons.length > 0 ? cartAddons : undefined
+      );
     }
   };
 
@@ -503,6 +536,16 @@ export function TourDetailsClient({ tour, availability = [] }: TourDetailsClient
                   </div>
                 </div>
               </div>
+              {addons.length > 0 && (
+                <div className="rounded-2xl border bg-muted/20 p-3">
+                  <AddonPicker
+                    addons={addons}
+                    selected={addonSelection}
+                    onChange={setAddonSelection}
+                    defaultPax={adults + children}
+                  />
+                </div>
+              )}
               <Separator />
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -517,6 +560,12 @@ export function TourDetailsClient({ tour, availability = [] }: TourDetailsClient
                     {children} x {format(currentPriceTier?.pricePerChild ?? 0)}
                   </span>
                 </div>
+                {addonsTotal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Extras</span>
+                    <span>{format(addonsTotal)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-xl text-primary pt-2">
                   <span>{t('tour.totalPrice')}</span>
                   <span>{format(totalPrice)}</span>

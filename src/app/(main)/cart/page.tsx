@@ -19,20 +19,146 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, ShoppingCart, Lightbulb, Loader2, PlusCircle, AlertTriangle } from 'lucide-react';
+import { Trash2, ShoppingCart, Lightbulb, Loader2, AlertTriangle } from 'lucide-react';
 import { getAiSuggestions } from '@/app/actions';
-import { getUpsellItems } from '@/lib/supabase/upsell-items';
+import { getCartFallbackAddons } from '@/lib/supabase/addons';
 import { getCartRoomLookup } from '@/lib/supabase/hotels';
 import { RoomCartLine } from '@/components/cart/room-cart-line';
-import type { CartItem, UpsellItem, Tour } from '@/types';
+import { CartLineAddonsEditor } from '@/components/cart/cart-line-addons-editor';
+import type { CartItem, UpsellItem, Tour, CartAddon, RoomCartAddon } from '@/types';
+import { buildCartAddon, defaultAddonSelection } from '@/lib/addons/pricing';
+import type { RoomCartItem } from '@/types';
 import { format } from 'date-fns';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+
+type CartUpdateTourAddons = (
+  productId: string,
+  packageId: string | undefined,
+  addons: CartAddon[]
+) => void;
+type CartUpdateRoomItem = (
+  lineId: string,
+  patch: Partial<Omit<RoomCartItem, 'productType' | 'lineId'>>
+) => void;
+type CartAddToCart = (
+  product: Tour | UpsellItem,
+  productType: 'tour' | 'upsell',
+  adults?: number,
+  children?: number,
+  date?: Date,
+  quantity?: number,
+  packageId?: string,
+  packageName?: string,
+  addons?: CartAddon[]
+) => void;
+
+function pricingModeLabel(mode: UpsellItem['pricingMode']): string {
+  switch (mode) {
+    case 'per_person':
+      return 'per person';
+    case 'per_hour':
+      return 'per hour';
+    case 'per_person_per_hour':
+      return 'per person · per hour';
+    case 'flat':
+    default:
+      return 'flat rate';
+  }
+}
+
+type AttachSuggestionArgs = {
+  item: UpsellItem;
+  tourItems: Array<CartItem & { product: Tour }>;
+  roomItems: Array<Extract<CartItem, { productType: 'room' }>>;
+  updateTourItemAddons: CartUpdateTourAddons;
+  updateRoomItem: CartUpdateRoomItem;
+  addToCart: CartAddToCart;
+};
+
+function attachSuggestionToFirstLine({
+  item,
+  tourItems,
+  roomItems,
+  updateTourItemAddons,
+  updateRoomItem,
+  addToCart,
+}: AttachSuggestionArgs) {
+  const sel = defaultAddonSelection(item, 1);
+  const cartAddon = buildCartAddon(item, sel);
+
+  // Prefer placement-targeted lines: room → room, tour → tour, else first.
+  const roomTarget =
+    item.placement.roomTypeIds.length > 0 || item.placement.hotelIds.length > 0
+      ? roomItems.find(
+          (r) =>
+            item.placement.roomTypeIds.includes(r.roomTypeId) ||
+            item.placement.hotelIds.includes(r.hotelId)
+        ) ?? roomItems[0]
+      : null;
+  const tourTarget =
+    item.placement.tourIds.length > 0 || item.placement.destinations.length > 0
+      ? tourItems.find(
+          (t) =>
+            item.placement.tourIds.includes(t.product.id) ||
+            (t.product.destination && item.placement.destinations.includes(t.product.destination))
+        ) ?? tourItems[0]
+      : null;
+
+  if (roomTarget) {
+    const next: RoomCartAddon[] = [
+      ...roomTarget.addons.filter(
+        (a) => (a.upsellItemId ?? a.id) !== item.id
+      ),
+      {
+        id: cartAddon.upsellItemId,
+        upsellItemId: cartAddon.upsellItemId,
+        variantId: cartAddon.variantId,
+        name: cartAddon.name,
+        variantName: cartAddon.variantName,
+        unitPrice: cartAddon.unitPrice,
+        pricingMode: cartAddon.pricingMode,
+        pax: cartAddon.pax,
+        hours: cartAddon.hours,
+        quantity: cartAddon.quantity,
+        totalPrice: cartAddon.totalPrice,
+        currency: cartAddon.currency,
+      },
+    ];
+    const subtotalBase =
+      roomTarget.pricePerNightAvg * roomTarget.nights * roomTarget.unitsBooked;
+    const addonsSum = next.reduce(
+      (acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity),
+      0
+    );
+    updateRoomItem(roomTarget.lineId, {
+      addons: next,
+      subtotal: subtotalBase + addonsSum,
+    });
+    return;
+  }
+
+  if (tourTarget) {
+    const existing =
+      tourTarget.productType === 'tour' ? (tourTarget.addons ?? []) : [];
+    const next: CartAddon[] = [
+      ...existing.filter((a) => a.upsellItemId !== item.id),
+      cartAddon,
+    ];
+    updateTourItemAddons(tourTarget.product.id, tourTarget.packageId, next);
+    return;
+  }
+
+  // No tour/room context — fall back to a standalone upsell line.
+  addToCart(
+    item,
+    'upsell',
+    undefined,
+    undefined,
+    undefined,
+    1,
+    cartAddon.variantId,
+    cartAddon.variantName
+  );
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -54,6 +180,8 @@ export default function CartPage() {
     cartItems,
     removeFromCart,
     removeRoomItem,
+    updateRoomItem,
+    updateTourItemAddons,
     getCartTotal,
     addToCart,
     clearCart,
@@ -69,8 +197,7 @@ export default function CartPage() {
     message: '',
     suggestions: [],
   });
-  const [upsellItems, setUpsellItems] = useState<UpsellItem[]>([]);
-  const [selectedUpsellVariant, setSelectedUpsellVariant] = useState<Record<string, string>>({});
+  const [suggestionAddons, setSuggestionAddons] = useState<UpsellItem[]>([]);
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
@@ -87,14 +214,6 @@ export default function CartPage() {
       setIsApplyingPromo(false);
     }
   };
-
-  useEffect(() => {
-    const fetchUpsells = async () => {
-      const items = await getUpsellItems();
-      setUpsellItems(items);
-    };
-    fetchUpsells();
-  }, []);
 
   const roomItems = useMemo(
     () =>
@@ -143,45 +262,73 @@ export default function CartPage() {
   const tourItems = cartItems.filter((item) => item.productType === 'tour') as Array<
     CartItem & { product: Tour }
   >;
-  const tourDestinations = Array.from(
-    new Set(tourItems.map((item) => (item.product as Tour).destination).filter(Boolean))
+  const tourDestinations = useMemo(
+    () =>
+      Array.from(
+        new Set(tourItems.map((item) => (item.product as Tour).destination).filter(Boolean))
+      ),
+    [tourItems]
+  );
+  const tourIds = useMemo(() => tourItems.map((t) => (t.product as Tour).id), [tourItems]);
+  const cartRoomTypeIds = useMemo(() => roomItems.map((r) => r.roomTypeId), [roomItems]);
+  const cartHotelIds = useMemo(() => roomItems.map((r) => r.hotelId), [roomItems]);
+
+  // Stable string keys so the suggestion fetch doesn't re-run on every render.
+  const cartCtxKey = useMemo(
+    () =>
+      JSON.stringify({
+        t: tourIds.slice().sort(),
+        d: tourDestinations.slice().sort(),
+        r: cartRoomTypeIds.slice().sort(),
+        h: cartHotelIds.slice().sort(),
+      }),
+    [tourIds, tourDestinations, cartRoomTypeIds, cartHotelIds]
   );
 
-  const isUpsellEligible = (upsell: UpsellItem) => {
-    if (!upsell.isActive) return false;
-    const targeting = upsell.targeting;
-    if (!targeting) return true;
-
-    const match = targeting.match ?? 'any';
-    const requiredDestinations = (targeting.destinations ?? []).filter(Boolean);
-    const requiredTourIds = (targeting.tourIds ?? []).filter(Boolean);
-
-    if (requiredDestinations.length === 0 && requiredTourIds.length === 0) return true;
-
-    const checks: boolean[] = [];
-    if (requiredDestinations.length > 0) {
-      checks.push(requiredDestinations.some((d) => tourDestinations.includes(d)));
+  useEffect(() => {
+    if (cartItems.length === 0) {
+      setSuggestionAddons([]);
+      return;
     }
-    if (requiredTourIds.length > 0) {
-      checks.push(
-        requiredTourIds.some((id) => tourItems.some((t) => (t.product as Tour).id === id))
-      );
-    }
-
-    return match === 'all' ? checks.every(Boolean) : checks.some(Boolean);
-  };
-
-  const getUpsellDisplay = (upsell: UpsellItem) => {
-    const selected = selectedUpsellVariant[upsell.id] ?? '__base__';
-    const variantId = selected === '__base__' ? undefined : selected;
-    const variant =
-      variantId && upsell.variants ? upsell.variants.find((v) => v.id === variantId) : undefined;
-    return {
-      variantId,
-      variantName: variant?.name,
-      price: variant?.price ?? upsell.price,
+    let cancelled = false;
+    void getCartFallbackAddons({
+      tourIds,
+      destinations: tourDestinations,
+      roomTypeIds: cartRoomTypeIds,
+      hotelIds: cartHotelIds,
+    })
+      .then((items) => {
+        if (cancelled) return;
+        setSuggestionAddons(items);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSuggestionAddons([]);
+      });
+    return () => {
+      cancelled = true;
     };
-  };
+    // cartCtxKey captures the deduped, order-stable inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartCtxKey, cartItems.length]);
+
+  // Hide suggestion addons that are already attached to any cart line.
+  const attachedUpsellIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of cartItems) {
+      if (item.productType === 'tour') {
+        for (const a of item.addons ?? []) ids.add(a.upsellItemId);
+      } else if (item.productType === 'room') {
+        for (const a of item.addons ?? []) ids.add(a.upsellItemId ?? a.id);
+      }
+    }
+    return ids;
+  }, [cartItems]);
+
+  const visibleSuggestions = useMemo(
+    () => suggestionAddons.filter((a) => !attachedUpsellIds.has(a.id)),
+    [suggestionAddons, attachedUpsellIds]
+  );
 
   const tourDescriptions = cartItems
     .filter((item) => item.productType === 'tour')
@@ -211,7 +358,16 @@ export default function CartPage() {
         (t) => totalPeople >= t.minPeople && (t.maxPeople === null || totalPeople <= t.maxPeople)
       ) || tiers[tiers.length - 1];
 
-    return (item.adults || 0) * tier.pricePerAdult + (item.children || 0) * tier.pricePerChild;
+    const base =
+      (item.adults || 0) * tier.pricePerAdult + (item.children || 0) * tier.pricePerChild;
+    if (item.productType === 'tour') {
+      const addonsTotal = (item.addons ?? []).reduce(
+        (acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity),
+        0
+      );
+      return base + addonsTotal;
+    }
+    return base;
   };
 
   return (
@@ -389,27 +545,43 @@ export default function CartPage() {
                           </div>
 
                           {item.productType === 'tour' && (
-                            <div className="grid gap-2 rounded-2xl border bg-muted/30 p-4 sm:grid-cols-2">
-                              <div className="space-y-0.5">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  {t('cart.date')}
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {item.date
-                                    ? format(new Date(item.date), 'PPP')
-                                    : t('cart.notSelected')}
-                                </p>
+                            <>
+                              <div className="grid gap-2 rounded-2xl border bg-muted/30 p-4 sm:grid-cols-2">
+                                <div className="space-y-0.5">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {t('cart.date')}
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {item.date
+                                      ? format(new Date(item.date), 'PPP')
+                                      : t('cart.notSelected')}
+                                  </p>
+                                </div>
+                                <div className="space-y-0.5">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {t('cart.guests')}
+                                  </p>
+                                  <p className="text-sm font-medium">
+                                    {(item.adults ?? 0).toString()} Adults,{' '}
+                                    {(item.children ?? 0).toString()} Children
+                                  </p>
+                                </div>
                               </div>
-                              <div className="space-y-0.5">
-                                <p className="text-xs font-medium text-muted-foreground">
-                                  {t('cart.guests')}
-                                </p>
-                                <p className="text-sm font-medium">
-                                  {(item.adults ?? 0).toString()} Adults,{' '}
-                                  {(item.children ?? 0).toString()} Children
-                                </p>
-                              </div>
-                            </div>
+                              <CartLineAddonsEditor
+                                kind="tour"
+                                tourId={(item.product as Tour).id}
+                                destination={(item.product as Tour).destination}
+                                defaultPax={(item.adults ?? 0) + (item.children ?? 0) || 1}
+                                attached={(item.addons ?? []) as CartAddon[]}
+                                onChange={(next) =>
+                                  updateTourItemAddons(
+                                    (item.product as Tour).id,
+                                    item.packageId,
+                                    next
+                                  )
+                                }
+                              />
+                            </>
                           )}
                         </div>
                       </div>
@@ -426,6 +598,18 @@ export default function CartPage() {
                     hotelSlug={hotel?.slug}
                     linkContext={{ singleHotelMode: hotelLookup.singleHotelMode }}
                     onRemove={removeRoomItem}
+                    onAddonsChange={(lineId, next: RoomCartAddon[]) => {
+                      const subtotalBase =
+                        roomItem.pricePerNightAvg * roomItem.nights * roomItem.unitsBooked;
+                      const addonsSum = next.reduce(
+                        (acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity),
+                        0
+                      );
+                      updateRoomItem(lineId, {
+                        addons: next,
+                        subtotal: subtotalBase + addonsSum,
+                      });
+                    }}
                   />
                 );
               })}
@@ -512,103 +696,58 @@ export default function CartPage() {
               </CardFooter>
             </Card>
 
-            {upsellItems.length > 0 && (
+            {visibleSuggestions.length > 0 && (
               <Card className="overflow-hidden rounded-3xl border bg-card">
                 <CardHeader>
                   <CardTitle className="text-lg">{t('cart.addMore')}</CardTitle>
                   <CardDescription>{t('cart.enhanceExp')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {upsellItems.filter(isUpsellEligible).map((item) => {
-                    const display = getUpsellDisplay(item);
-                    const selectValue = display.variantId ?? '__base__';
-                    const alreadyInCart = cartItems.some(
-                      (cartItem) =>
-                        cartItem.product.id === item.id &&
-                        cartItem.productType === 'upsell' &&
-                        (cartItem.packageId ?? 'base') === (display.variantId ?? 'base')
-                    );
-
-                    return (
-                      <div
-                        key={item.id}
-                        className="grid gap-3 rounded-2xl border bg-background p-4"
-                      >
-                        <div className="flex min-w-0 items-start gap-3">
-                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border">
-                            <Image
-                              src={item.imageUrl || '/placeholder-upsell.png'}
-                              alt={item.name}
-                              fill
-                              className="object-cover"
-                              sizes="48px"
-                            />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold leading-snug">{item.name}</p>
-                            {item.description ? (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {item.description}
-                              </p>
-                            ) : null}
-                          </div>
+                  {visibleSuggestions.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid gap-3 rounded-2xl border bg-background p-4"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border">
+                          <Image
+                            src={item.imageUrl || '/placeholder-upsell.png'}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
                         </div>
-                        <div className="grid w-full gap-2">
-                          {item.variants && item.variants.length > 0 ? (
-                            <Select
-                              value={selectValue}
-                              onValueChange={(value) =>
-                                setSelectedUpsellVariant((prev) => ({ ...prev, [item.id]: value }))
-                              }
-                            >
-                              <SelectTrigger className="h-11 w-full min-w-0">
-                                <SelectValue placeholder={t('cart.selectOption')} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="__base__">{t('cart.base')}</SelectItem>
-                                {(item.variants ?? [])
-                                  .filter(
-                                    (
-                                      variant
-                                    ): variant is { id: string; name: string; price: number } =>
-                                      Boolean(variant.id)
-                                  )
-                                  .map((variant) => (
-                                    <SelectItem key={variant.id} value={variant.id}>
-                                      {variant.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold leading-snug">{item.name}</p>
+                          {item.description ? (
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {item.description}
+                            </p>
                           ) : null}
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="min-w-0 break-words text-sm font-semibold text-primary">
-                              {formatPrice(display.price)}
-                            </span>
-                            <Button
-                              size="sm"
-                              className="h-11 flex-1 px-3"
-                              onClick={() =>
-                                addToCart(
-                                  item,
-                                  'upsell',
-                                  undefined,
-                                  undefined,
-                                  undefined,
-                                  1,
-                                  display.variantId,
-                                  display.variantName
-                                )
-                              }
-                              disabled={alreadyInCart}
-                            >
-                              <PlusCircle className="mr-1 h-4 w-4" /> {t('cart.addBtn')}
-                            </Button>
-                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatPrice(Number(item.price))} · {pricingModeLabel(item.pricingMode)}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+                      <Button
+                        size="sm"
+                        className="h-10"
+                        onClick={() =>
+                          attachSuggestionToFirstLine({
+                            item,
+                            tourItems,
+                            roomItems,
+                            updateTourItemAddons,
+                            updateRoomItem,
+                            addToCart,
+                          })
+                        }
+                      >
+                        Attach to my booking
+                      </Button>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             )}

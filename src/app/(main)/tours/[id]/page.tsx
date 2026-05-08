@@ -6,6 +6,7 @@ import { getAgencySettings } from '@/lib/supabase/agency-content';
 import { getCurrentAgency } from '@/lib/supabase/agencies';
 import { getApprovedReviewsForTour } from '@/lib/supabase/reviews';
 import { getPublicTourAvailability } from '@/lib/supabase/tour-availability';
+import { getAddonsForTour } from '@/lib/supabase/addons';
 import { ReviewForm } from '@/components/review-form';
 import { ReviewsDisplay } from '@/components/reviews-display';
 
@@ -56,18 +57,19 @@ export default async function TourDetailsPage({ params }: TourDetailsPageProps) 
     notFound();
   }
 
-  // Fetch agency + reviews + availability in parallel
-  const [agency, reviews, availability] = await Promise.all([
+  // Fetch agency + reviews + availability + addons in parallel
+  const [agency, reviews, availability, addons] = await Promise.all([
     getCurrentAgency(),
     getApprovedReviewsForTour(tour.id),
     getPublicTourAvailability(tour.id),
+    getAddonsForTour({ id: tour.id, destination: tour.destination }),
   ]);
 
   const reviewsEnabled = agency?.settings?.modules?.reviews !== false;
 
   return (
     <>
-      <TourDetailsClient tour={tour} availability={availability} />
+      <TourDetailsClient tour={tour} availability={availability} addons={addons} />
       {reviewsEnabled && (
         <div className="mx-auto w-full max-w-6xl space-y-8 px-4 pb-10">
           <ReviewsDisplay reviews={reviews} title={`Reviews for ${tour.name}`} />

@@ -83,11 +83,29 @@ export type RoomAddon = {
   updatedAt: string;
 };
 
+/**
+ * Snapshot of an addon attached to a room cart line.
+ *
+ * Carries both the legacy `id` field (mirrors `upsellItemId`) and the new
+ * pricing-mode / pax / hours fields introduced by the unified-addons
+ * migration. New code should populate everything; old readers that only
+ * touch `id`, `name`, `unitPrice`, `quantity`, `currency` keep working.
+ */
 export type RoomCartAddon = {
+  /** @deprecated mirror of `upsellItemId`; kept so legacy code keeps reading. */
   id: string;
+  upsellItemId?: string;
+  variantId?: string;
   name: string;
+  variantName?: string;
   unitPrice: number;
+  pricingMode?: 'flat' | 'per_person' | 'per_hour' | 'per_person_per_hour';
+  pax?: number;
+  hours?: number;
   quantity: number;
+  /** Pre-computed line total honoring pricingMode + pax + hours. Optional
+   * for back-compat with rows persisted before the unified migration. */
+  totalPrice?: number;
   currency: string;
 };
 

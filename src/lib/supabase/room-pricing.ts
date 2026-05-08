@@ -325,12 +325,67 @@ export async function getRoomPriceQuoteAction(input: RoomPriceQuoteInput): Promi
 const PG_UNDEFINED_TABLE = '42P01';
 
 /**
- * Fetch active room addons for a room type. Returns `[]` if the optional
- * `room_addons` table does not exist yet (migration unapplied).
+ * Fetch active room addons for a room type. Reads the unified `upsell_items`
+ * table first (filtered by `placement.roomTypeIds`) so admins editing addons
+ * in the new UI see them everywhere. Falls back to the deprecated
+ * `room_addons` table for environments where the unified-addons migration
+ * has not yet been applied.
+ *
+ * Result type stays `RoomAddon[]` so existing consumers (bookings.ts,
+ * checkout RoomAddonsBlock) keep compiling. Pricing-mode / pax / hours
+ * metadata is dropped at this boundary; new code should call
+ * `getAddonsForRoom` from `@/lib/supabase/addons` to receive the full
+ * `UpsellItem` shape.
  */
 export async function getRoomAddons(roomTypeId: string): Promise<RoomAddon[]> {
   if (!roomTypeId) return [];
   const supabase = await createClient();
+
+  // Unified path: upsell_items with placement.roomTypeIds containing this id.
+  const unifiedRes = await supabase
+    .from('upsell_items')
+    .select('*')
+    .eq('is_active', true)
+    .contains('placement', { roomTypeIds: [roomTypeId] })
+    .order('sort_order', { ascending: true });
+
+  if (!unifiedRes.error) {
+    const rows = unifiedRes.data ?? [];
+    if (rows.length > 0) {
+      return rows.map((row) => {
+        const r = toCamelCase(row) as Record<string, unknown> & {
+          id: string;
+          name: string;
+          description?: string | null;
+          price?: number | string;
+          currency?: string | null;
+          isActive?: boolean;
+          sortOrder?: number;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        return {
+          id: r.id,
+          roomTypeId,
+          name: r.name,
+          description: r.description ?? null,
+          price: Number(r.price ?? 0),
+          currency: r.currency ?? 'USD',
+          isActive: r.isActive ?? true,
+          sortOrder: r.sortOrder ?? 0,
+          createdAt: r.createdAt ?? '',
+          updatedAt: r.updatedAt ?? '',
+        } satisfies RoomAddon;
+      });
+    }
+  } else {
+    const code = (unifiedRes.error as { code?: string }).code;
+    if (code !== PG_UNDEFINED_TABLE && code !== '42703') {
+      // Surface unexpected errors but let the legacy fallback try anyway.
+      // eslint-disable-next-line no-console
+      console.error('[room-pricing] unified addons read failed', unifiedRes.error);
+    }
+  }
 
   const { data, error } = await supabase
     .from('room_addons')
@@ -342,7 +397,6 @@ export async function getRoomAddons(roomTypeId: string): Promise<RoomAddon[]> {
   if (error) {
     const code = (error as { code?: string }).code;
     if (code === PG_UNDEFINED_TABLE) {
-      // Schema not yet migrated; surface an empty list so the UI is unblocked.
       return [];
     }
     throw error;

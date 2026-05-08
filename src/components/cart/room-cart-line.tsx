@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useCurrency } from '@/hooks/use-currency';
 import { getRoomDetailHref, type HotelLinkContext } from '@/lib/routing/hotel-links';
-import type { RoomCartItem } from '@/types';
+import type { RoomCartAddon, RoomCartItem } from '@/types';
+import { CartLineAddonsEditor } from '@/components/cart/cart-line-addons-editor';
 
 type Variant = 'cart' | 'summary';
 
@@ -22,6 +23,9 @@ export type RoomCartLineProps = {
   linkContext?: HotelLinkContext;
   variant?: Variant;
   onRemove?: (lineId: string) => void;
+  /** When provided, renders an inline editor below the line so guests can
+   * add/edit room add-ons without leaving the cart. */
+  onAddonsChange?: (lineId: string, next: RoomCartAddon[]) => void;
 };
 
 function formatRange(checkIn: string, checkOut: string): string {
@@ -53,11 +57,15 @@ export function RoomCartLine({
   linkContext,
   variant = 'cart',
   onRemove,
+  onAddonsChange,
 }: RoomCartLineProps) {
   const { format: formatPrice } = useCurrency();
   const imageSrc = item.image || '/placeholder.png';
   const stayCost = item.pricePerNightAvg * item.nights * item.unitsBooked;
-  const addonsTotal = item.addons.reduce((acc, a) => acc + a.unitPrice * a.quantity, 0);
+  const addonsTotal = item.addons.reduce(
+    (acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity),
+    0
+  );
   const editHref = hotelSlug ? getRoomDetailHref(linkContext, hotelSlug, item.roomSlug) : null;
 
   if (variant === 'summary') {
@@ -194,6 +202,17 @@ export function RoomCartLine({
               </div>
             ) : null}
           </div>
+
+          {variant === 'cart' && onAddonsChange ? (
+            <CartLineAddonsEditor
+              kind="room"
+              roomTypeId={item.roomTypeId}
+              hotelId={item.hotelId}
+              defaultPax={Math.max(1, item.adults)}
+              attached={item.addons}
+              onChange={(next) => onAddonsChange(item.lineId, next)}
+            />
+          ) : null}
 
           {editHref ? (
             <div className="flex items-center justify-end">

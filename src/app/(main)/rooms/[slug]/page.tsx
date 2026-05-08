@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getPublicHotelBySlug, getPublicHotels, getRoomTypeBySlug } from '@/lib/supabase/hotels';
 import { getCurrentAgency } from '@/lib/supabase/agencies';
 import { getAgencySettings } from '@/lib/supabase/agency-content';
-import { getRoomAddons } from '@/lib/supabase/room-pricing';
+import { getAddonsForRoom } from '@/lib/supabase/addons';
 import { RoomDetailView } from '@/components/room-detail-view';
 
 interface RoomPageProps {
@@ -29,7 +29,7 @@ export default async function RoomDetailPage({ params }: RoomPageProps) {
     notFound();
   }
 
-  const addons = await getRoomAddons(room.id);
+  const addons = await getAddonsForRoom(room.id, hotel.id);
 
   return (
     <RoomDetailView

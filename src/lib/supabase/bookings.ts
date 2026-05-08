@@ -71,31 +71,53 @@ function roundCurrency(value: number): number {
 
 function roomAddonsTotal(room: RoomCartItem): number {
   return roundCurrency(
-    room.addons.reduce((total, addon) => total + addon.unitPrice * addon.quantity, 0)
+    room.addons.reduce(
+      (total, addon) => total + (addon.totalPrice ?? addon.unitPrice * addon.quantity),
+      0
+    )
   );
 }
 
 async function priceRoomCartAddons(item: RoomCartItem): Promise<RoomCartAddon[]> {
-  const requested = new Map(
-    item.addons
-      .map((addon) => [addon.id, Math.trunc(Number(addon.quantity))] as const)
-      .filter(([, quantity]) => Number.isFinite(quantity) && quantity > 0)
-  );
-
+  // Re-priced snapshots from the active addon catalog. Honors the unified
+  // addon shape (variant, pax, hours) when the snapshot supplied by the
+  // client carries those fields; degrades to the legacy `unitPrice ×
+  // quantity` math otherwise.
+  const requested = new Map<
+    string,
+    Pick<RoomCartAddon, 'variantId' | 'pax' | 'hours' | 'quantity'>
+  >();
+  for (const addon of item.addons) {
+    const id = addon.upsellItemId ?? addon.id;
+    if (!id) continue;
+    const quantity = Math.max(1, Math.trunc(Number(addon.quantity ?? 1)));
+    requested.set(id, {
+      variantId: addon.variantId,
+      pax: addon.pax,
+      hours: addon.hours,
+      quantity,
+    });
+  }
   if (requested.size === 0) return [];
 
   const activeAddons = await getRoomAddons(item.roomTypeId).catch(() => []);
   return activeAddons.flatMap((addon) => {
-    const quantity = requested.get(addon.id) ?? 0;
-    if (quantity < 1) return [];
-
+    const req = requested.get(addon.id);
+    if (!req) return [];
+    const unitPrice = Number(addon.price);
+    const totalPrice = roundCurrency(unitPrice * (req.quantity ?? 1));
     return [
       {
         id: addon.id,
+        upsellItemId: addon.id,
+        variantId: req.variantId,
         name: addon.name,
-        unitPrice: Number(addon.price),
-        quantity,
-        currency: 'USD',
+        unitPrice,
+        quantity: req.quantity ?? 1,
+        pax: req.pax,
+        hours: req.hours,
+        totalPrice,
+        currency: addon.currency ?? 'USD',
       },
     ];
   });
@@ -131,7 +153,10 @@ async function quoteRoomCartItem(item: RoomCartItem): Promise<RoomCartItem> {
 
   const addons = await priceRoomCartAddons(item);
   const addonsTotal = roundCurrency(
-    addons.reduce((total, addon) => total + addon.unitPrice * addon.quantity, 0)
+    addons.reduce(
+      (total, addon) => total + (addon.totalPrice ?? addon.unitPrice * addon.quantity),
+      0
+    )
   );
   const tier = quote.tier
     ? {
@@ -628,6 +653,7 @@ export async function createBooking(data: CreateBookingData) {
     let itemPrice = 0;
     let tourId: string | undefined;
     let upsellItemId: string | undefined;
+    let attachedAddons: import('@/types').CartAddon[] | undefined;
 
     if (item.productType === 'tour') {
       const tour = item.product as Tour;
@@ -657,6 +683,15 @@ export async function createBooking(data: CreateBookingData) {
           (item.adults ?? 0) * priceTier.pricePerAdult +
           (item.children ?? 0) * priceTier.pricePerChild;
       }
+
+      attachedAddons = item.addons ?? undefined;
+      if (attachedAddons && attachedAddons.length > 0) {
+        const addonsTotal = attachedAddons.reduce(
+          (acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity),
+          0
+        );
+        itemPrice = roundCurrency(itemPrice + addonsTotal);
+      }
     } else if (item.productType === 'upsell') {
       const upsellItem = item.product as UpsellItem;
       upsellItemId = upsellItem.id;
@@ -679,6 +714,7 @@ export async function createBooking(data: CreateBookingData) {
       children: item.children ?? 0,
       item_date: item.date || null,
       price: itemPrice,
+      addons: attachedAddons && attachedAddons.length > 0 ? attachedAddons : null,
     };
   });
 
@@ -818,8 +854,21 @@ export async function createBooking(data: CreateBookingData) {
       const { error: itemsError } = await supabase.from('booking_items').insert(itemsWithId);
 
       if (itemsError) {
-        console.error('Error creating booking items:', itemsError);
-        throw new Error('Failed to create booking items.');
+        const code = (itemsError as { code?: string }).code;
+        if (code === '42703') {
+          // Unified-addons migration not yet applied; retry without the new
+          // `addons` jsonb column so the booking still completes.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const fallbackItems = itemsWithId.map(({ addons: _addons, ...rest }) => rest);
+          const retry = await supabase.from('booking_items').insert(fallbackItems);
+          if (retry.error) {
+            console.error('Error creating booking items (fallback):', retry.error);
+            throw new Error('Failed to create booking items.');
+          }
+        } else {
+          console.error('Error creating booking items:', itemsError);
+          throw new Error('Failed to create booking items.');
+        }
       }
     }
 
@@ -965,15 +1014,25 @@ export async function createBooking(data: CreateBookingData) {
         units?: number;
         addonsLabel?: string;
       }> = [];
+      const formatAddon = (a: {
+        name: string;
+        variantName?: string;
+        pax?: number;
+        hours?: number;
+        quantity: number;
+      }): string => {
+        const parts: string[] = [];
+        if (a.variantName) parts.push(a.variantName);
+        if (a.pax) parts.push(`${a.pax} pax`);
+        if (a.hours) parts.push(`${a.hours}h`);
+        if (parts.length === 0 && a.quantity > 1) parts.push(`× ${a.quantity}`);
+        return parts.length > 0 ? `${a.name} (${parts.join(' · ')})` : a.name;
+      };
       let nonRoomIdx = 0;
       for (const item of pricedCartItems) {
         if (item.productType === 'room') {
           const addonsLabel =
-            item.addons.length > 0
-              ? item.addons
-                  .map((a) => `${a.name}${a.quantity > 1 ? ` × ${a.quantity}` : ''}`)
-                  .join(', ')
-              : undefined;
+            item.addons.length > 0 ? item.addons.map(formatAddon).join(', ') : undefined;
           out.push({
             name: item.name,
             adults: item.adults,
@@ -986,6 +1045,7 @@ export async function createBooking(data: CreateBookingData) {
             addonsLabel,
           });
         } else {
+          const tourAddons = item.productType === 'tour' ? item.addons ?? [] : [];
           out.push({
             name: item.product.name,
             packageName: item.packageName,
@@ -993,6 +1053,8 @@ export async function createBooking(data: CreateBookingData) {
             children: item.productType === 'tour' ? (item.children ?? 0) : undefined,
             date: item.date ? item.date.toISOString() : undefined,
             price: bookingItemsToInsert[nonRoomIdx]?.price ?? 0,
+            addonsLabel:
+              tourAddons.length > 0 ? tourAddons.map(formatAddon).join(', ') : undefined,
           });
           nonRoomIdx += 1;
         }

@@ -17,20 +17,23 @@ import {
   Plus,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
   Users,
   View as ViewIcon,
 } from 'lucide-react';
 
 import type {
   Hotel,
-  RoomAddon,
   RoomAvailabilityNight,
   RoomAvailabilityNightStatus,
-  RoomCartAddon,
   RoomPriceQuote,
   RoomType,
+  UpsellItem,
 } from '@/types';
+import {
+  AddonPicker,
+  selectionToRoomCartAddons,
+  type AddonSelectionMap,
+} from '@/components/addons/addon-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
@@ -59,7 +62,7 @@ import { CrossSellRail, type CrossSellContext } from '@/components/cross-sell-ra
 interface RoomDetailViewProps {
   room: RoomType;
   hotel: Hotel;
-  addons: RoomAddon[];
+  addons: UpsellItem[];
   singleHotelMode?: boolean | null;
 }
 
@@ -149,7 +152,7 @@ export function RoomDetailView({ room, hotel, addons, singleHotelMode }: RoomDet
   const [adults, setAdults] = useState<number>(1);
   const [childrenCount, setChildrenCount] = useState<number>(0);
   const [units, setUnits] = useState<number>(1);
-  const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [addonSelection, setAddonSelection] = useState<AddonSelectionMap>({});
   const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   // Coerce guest counts down when units decrease.
@@ -209,22 +212,13 @@ export function RoomDetailView({ room, hotel, addons, singleHotelMode }: RoomDet
   ]);
 
   // ── Addons ──
-  const selectedAddons: RoomCartAddon[] = useMemo(
-    () =>
-      addons
-        .map((a) => ({
-          id: a.id,
-          name: a.name,
-          unitPrice: Number(a.price),
-          quantity: addonQty[a.id] ?? 0,
-          currency: a.currency,
-        }))
-        .filter((a) => a.quantity > 0),
-    [addons, addonQty]
+  const selectedAddons = useMemo(
+    () => selectionToRoomCartAddons(addons, addonSelection),
+    [addons, addonSelection]
   );
 
   const addonsTotal = useMemo(
-    () => selectedAddons.reduce((acc, a) => acc + a.unitPrice * a.quantity, 0),
+    () => selectedAddons.reduce((acc, a) => acc + (a.totalPrice ?? a.unitPrice * a.quantity), 0),
     [selectedAddons]
   );
 
@@ -782,65 +776,12 @@ export function RoomDetailView({ room, hotel, addons, singleHotelMode }: RoomDet
                 </div>
 
                 {addons.length > 0 && (
-                  <div>
-                    <Label className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Optional extras
-                    </Label>
-                    <ul className="space-y-2">
-                      {addons.map((a) => {
-                        const qty = addonQty[a.id] ?? 0;
-                        return (
-                          <li
-                            key={a.id}
-                            className="flex items-start justify-between gap-3 rounded-lg border p-3"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium">{a.name}</p>
-                              {a.description ? (
-                                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                                  {a.description}
-                                </p>
-                              ) : null}
-                              <p className="mt-1 text-xs font-medium text-primary">
-                                {formatMoney(Number(a.price))} {a.currency}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-10 w-10"
-                                onClick={() =>
-                                  setAddonQty((prev) => ({
-                                    ...prev,
-                                    [a.id]: Math.max(0, (prev[a.id] ?? 0) - 1),
-                                  }))
-                                }
-                                aria-label={`Decrease ${a.name}`}
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </Button>
-                              <span className="w-5 text-center text-sm tabular-nums">{qty}</span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-10 w-10"
-                                onClick={() =>
-                                  setAddonQty((prev) => ({
-                                    ...prev,
-                                    [a.id]: (prev[a.id] ?? 0) + 1,
-                                  }))
-                                }
-                                aria-label={`Increase ${a.name}`}
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                  <AddonPicker
+                    addons={addons}
+                    selected={addonSelection}
+                    onChange={setAddonSelection}
+                    defaultPax={Math.max(1, adults)}
+                  />
                 )}
 
                 <Separator />
