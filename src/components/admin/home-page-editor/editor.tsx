@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -2055,7 +2056,12 @@ export function HomePageEditorForm({ initialContent }: { initialContent: HomeCon
                                           Offer Expires (date)
                                         </FormLabel>
                                         <FormControl>
-                                          <Input type="date" {...field} />
+                                          <DatePicker
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            placeholder="No expiry"
+                                            disablePast
+                                          />
                                         </FormControl>
                                         <FormDescription className="text-[11px]">
                                           Leave blank to hide the countdown timer.

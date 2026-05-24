@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 import { cn } from '@/lib/utils';
 
 export type HotelAvailabilityCalendarRow = {
@@ -419,25 +420,23 @@ export function HotelAvailabilityCalendar({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="rangeFrom">From</Label>
-                  <Input
+                  <DatePicker
                     id="rangeFrom"
-                    name="from"
-                    type="date"
                     value={rangeFrom}
-                    onChange={(event) => setRangeFrom(event.target.value)}
-                    required
+                    onChange={setRangeFrom}
+                    placeholder="Start date"
+                    clearable={false}
                   />
                 </div>
 
                 <div className="grid gap-1.5">
                   <Label htmlFor="rangeTo">To</Label>
-                  <Input
+                  <DatePicker
                     id="rangeTo"
-                    name="to"
-                    type="date"
                     value={rangeTo}
-                    onChange={(event) => setRangeTo(event.target.value)}
-                    required
+                    onChange={setRangeTo}
+                    placeholder="End date"
+                    clearable={false}
                   />
                 </div>
               </div>

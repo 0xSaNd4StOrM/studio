@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, ArrowUpDown } from 'lucide-react';
+import { MoreHorizontal, ArrowUpDown, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -56,13 +56,30 @@ export const columns: ColumnDef<Post>[] = [
     },
     cell: ({ row }) => {
       const post = row.original;
+      // "Recently edited" pin: post was updated in the last 3 days.
+      // Falls back to createdAt-based check if updatedAt is missing.
+      const recencySource = post.updatedAt ?? post.createdAt;
+      const editedRecently =
+        recencySource &&
+        Date.now() - new Date(recencySource).getTime() < 3 * 24 * 60 * 60 * 1000;
       return (
-        <Link
-          href={`/admin/blog/${post.slug}/edit`}
-          className="font-medium text-primary hover:underline"
-        >
-          {row.getValue('title')}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/blog/${post.slug}/edit`}
+            className="font-medium text-primary hover:underline"
+          >
+            {row.getValue('title')}
+          </Link>
+          {editedRecently && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+              title={`Last edited ${new Date(recencySource).toLocaleString()}`}
+            >
+              <Clock className="h-2.5 w-2.5" />
+              Recently edited
+            </span>
+          )}
+        </div>
       );
     },
   },
