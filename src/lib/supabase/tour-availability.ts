@@ -135,6 +135,47 @@ export async function removeDateAvailability(tourId: string, date: string) {
   revalidatePath('/tours');
 }
 
+// ─── Public: Cart-page urgency hints ────────────────────────────────────────
+/**
+ * Look up remaining-spots counts for a batch of (tourId, date) pairs in a
+ * single round trip. Used to render "Only N spots left" pills on cart
+ * line items.
+ *
+ * Returns a Map keyed by `${tourId}|${date}` → remaining spots. Entries
+ * where availability is unlimited (no row, or `available_spots IS NULL`)
+ * are omitted, so callers can safely `?? null` to render nothing.
+ */
+export async function getCartTourSpotsRemaining(
+  pairs: ReadonlyArray<{ tourId: string; date: string }>
+): Promise<Record<string, number>> {
+  if (pairs.length === 0) return {};
+  const supabase = await createClient();
+
+  const tourIds = Array.from(new Set(pairs.map((p) => p.tourId)));
+  const dates = Array.from(new Set(pairs.map((p) => p.date)));
+
+  const { data, error } = await supabase
+    .from('tour_availability')
+    .select('tour_id, date, available_spots, is_blocked')
+    .in('tour_id', tourIds)
+    .in('date', dates);
+
+  if (error || !data) return {};
+
+  // Server-side narrow back to the exact requested pairs to avoid surfacing
+  // cross-matches when two tours share a date.
+  const wanted = new Set(pairs.map((p) => `${p.tourId}|${p.date}`));
+  const out: Record<string, number> = {};
+  for (const row of data as { tour_id: string; date: string; available_spots: number | null; is_blocked: boolean }[]) {
+    const key = `${row.tour_id}|${row.date}`;
+    if (!wanted.has(key)) continue;
+    if (row.is_blocked) continue;
+    if (row.available_spots == null) continue;
+    out[key] = row.available_spots;
+  }
+  return out;
+}
+
 // ─── Checkout: Check availability for a tour on a specific date ─────────────
 export async function checkTourDateAvailability(
   tourId: string,

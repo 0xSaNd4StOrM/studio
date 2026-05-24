@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils';
 import { getAiSuggestions } from '@/app/actions';
 import { getUpsellItems } from '@/lib/supabase/upsell-items';
 import { getPublicAgencyReviewStats } from '@/lib/supabase/reviews';
+import { getCartTourSpotsRemaining } from '@/lib/supabase/tour-availability';
 import { getCartRoomLookup } from '@/lib/supabase/hotels';
 import { RoomCartLine } from '@/components/cart/room-cart-line';
 import type { CartItem, UpsellItem, Tour } from '@/types';
@@ -111,6 +112,52 @@ function QuantityStepper({
   );
 }
 
+/**
+ * Tiny live countdown for a promo code's `expiresAt`.
+ *
+ * - Returns null when there's no expiry, the expiry already passed, or
+ *   it's more than 7 days away (no urgency yet).
+ * - Within 24 hours: shows hours/minutes counting down (re-renders every
+ *   30 s — sub-minute precision is overkill).
+ * - 1–7 days out: shows "Expires in N days".
+ */
+function PromoExpiryNotice({ expiresAt }: { expiresAt?: string }) {
+  const [, force] = useState(0);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const interval = setInterval(() => force((n) => n + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  if (!expiresAt) return null;
+  const exp = new Date(expiresAt);
+  const ms = exp.getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  if (ms > SEVEN_DAYS) return null;
+
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  const days = Math.floor(hours / 24);
+  const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+
+  let label: string;
+  if (hours < 1) {
+    label = `Expires in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  } else if (hours < 24) {
+    label = `Expires in ${hours}h ${minutes}m`;
+  } else {
+    label = `Expires in ${days} day${days === 1 ? '' : 's'}`;
+  }
+
+  return (
+    <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+      <Clock className="h-3 w-3" />
+      {label} — lock it in now.
+    </p>
+  );
+}
+
 export default function CartPage() {
   const {
     cartItems,
@@ -135,6 +182,8 @@ export default function CartPage() {
   const [upsellItems, setUpsellItems] = useState<UpsellItem[]>([]);
   const [selectedUpsellVariant, setSelectedUpsellVariant] = useState<Record<string, string>>({});
   const [reviewStats, setReviewStats] = useState<{ average: number; count: number } | null>(null);
+  /** Map keyed `${tourId}|${date}` → spots remaining. Drives "Only N spots left" pills. */
+  const [tourSpotsRemaining, setTourSpotsRemaining] = useState<Record<string, number>>({});
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
@@ -165,6 +214,37 @@ export default function CartPage() {
       .then((stats) => setReviewStats(stats))
       .catch(() => undefined);
   }, []);
+
+  // Fetch remaining-spots for each tour item currently in the cart.
+  // Re-runs when items are added/removed or their dates change.
+  const tourSpotsLookupKey = useMemo(() => {
+    return cartItems
+      .filter((i): i is Extract<CartItem, { productType: 'tour' }> => i.productType === 'tour')
+      .filter((i) => i.date)
+      .map((i) => `${i.product.id}|${new Date(i.date as Date).toISOString().split('T')[0]}`)
+      .sort()
+      .join(',');
+  }, [cartItems]);
+
+  useEffect(() => {
+    if (!tourSpotsLookupKey) {
+      setTourSpotsRemaining({});
+      return;
+    }
+    const pairs = tourSpotsLookupKey.split(',').map((entry) => {
+      const [tourId, date] = entry.split('|');
+      return { tourId, date };
+    });
+    let cancelled = false;
+    getCartTourSpotsRemaining(pairs)
+      .then((res) => {
+        if (!cancelled) setTourSpotsRemaining(res);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [tourSpotsLookupKey]);
 
   const roomItems = useMemo(
     () =>
@@ -458,6 +538,25 @@ export default function CartPage() {
                                 {item.packageName && (
                                   <Badge variant="outline">{item.packageName}</Badge>
                                 )}
+                                {item.productType === 'tour' &&
+                                  item.date &&
+                                  (() => {
+                                    const dateStr = new Date(item.date as Date)
+                                      .toISOString()
+                                      .split('T')[0];
+                                    const spots =
+                                      tourSpotsRemaining[`${item.product.id}|${dateStr}`];
+                                    if (spots == null || spots <= 0 || spots > 6) return null;
+                                    return (
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-amber-100 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-200"
+                                      >
+                                        <AlertTriangle className="h-3 w-3 mr-1" />
+                                        Only {spots} spot{spots === 1 ? '' : 's'} left
+                                      </Badge>
+                                    );
+                                  })()}
                               </div>
                             </div>
                             <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:justify-start">
@@ -543,12 +642,15 @@ export default function CartPage() {
                 </div>
 
                 {promoCode ? (
-                  <div className="flex justify-between text-green-600 dark:text-green-400">
-                    <span>
-                      {t('cart.discount')} ({promoCode.code})
-                    </span>
-                    <span>-{formatPrice(getDiscountAmount())}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between text-green-600 dark:text-green-400">
+                      <span>
+                        {t('cart.discount')} ({promoCode.code})
+                      </span>
+                      <span>-{formatPrice(getDiscountAmount())}</span>
+                    </div>
+                    <PromoExpiryNotice expiresAt={promoCode.expiresAt} />
+                  </>
                 ) : null}
 
                 <div className="flex gap-2">
