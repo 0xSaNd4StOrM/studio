@@ -10,11 +10,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Clock,
   Loader2,
   Plus,
   RefreshCw,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Star,
   X,
   Tag,
@@ -219,9 +221,9 @@ export default function CheckoutPage() {
 
   const steps: ReadonlyArray<CheckoutStep> = useMemo(
     () => [
-      { id: 'guest', label: 'Your details', description: 'Contact info' },
-      { id: 'addons', label: 'Add-ons', description: 'Optional extras' },
-      { id: 'payment', label: 'Payment', description: 'Review & pay' },
+      { id: 'guest', label: 'Your details', description: 'Takes about 2 minutes' },
+      { id: 'addons', label: 'Make it yours', description: 'Optional extras — skip any time' },
+      { id: 'payment', label: 'Almost there', description: 'Review & pay' },
     ],
     []
   );
@@ -506,8 +508,12 @@ export default function CheckoutPage() {
       }
     }
 
+    toast({
+      title: '✓ Step 1 of 3',
+      description: 'Now make it yours, or skip straight to payment.',
+    });
     goToStep(1);
-  }, [form, goToStep]);
+  }, [form, goToStep, toast]);
 
   /** Step 2 → Step 3 gate. Add-ons are optional, so this always passes.
    *  Also reconcile the selected payment method against current availability
@@ -523,6 +529,11 @@ export default function CheckoutPage() {
       });
     } else if (current === 'cash' && !paymentMethodsEnabled.cash) {
       form.setValue('paymentMethod', fallback, { shouldValidate: true });
+    } else {
+      toast({
+        title: '✓ Step 2 of 3',
+        description: 'One more step — pick how to pay and you\'re booked.',
+      });
     }
     goToStep(2);
   }, [form, goToStep, paymentMethodsEnabled, toast]);
@@ -1077,7 +1088,15 @@ export default function CheckoutPage() {
             >
               <Card className="overflow-hidden rounded-2xl border bg-card">
                 <CardHeader>
-                  <CardTitle id="step-guest-heading">{t('checkout.customerInfo')}</CardTitle>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle id="step-guest-heading">
+                      Where should we send your confirmation?
+                    </CardTitle>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      Takes about 2 minutes
+                    </span>
+                  </div>
                   <CardDescription>{t('checkout.customerInfoDesc')}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -1172,9 +1191,10 @@ export default function CheckoutPage() {
             >
               <Card className="overflow-hidden rounded-2xl border bg-card">
                 <CardHeader>
-                  <CardTitle id="step-addons-heading">Make your trip even better</CardTitle>
+                  <CardTitle id="step-addons-heading">Make it yours ✨</CardTitle>
                   <CardDescription>
-                    Optional extras you can add to your booking. Skip any time.
+                    Optional extras curated for your trip. Skip any time — your booking still
+                    holds.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1302,8 +1322,20 @@ export default function CheckoutPage() {
             >
               <Card className="overflow-hidden rounded-2xl border bg-card">
                 <CardHeader>
-                  <CardTitle id="step-payment-heading">{t('checkout.paymentMethod')}</CardTitle>
-                  <CardDescription>Review your order and choose how to pay.</CardDescription>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle
+                      id="step-payment-heading"
+                      className="inline-flex items-center gap-2"
+                    >
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Almost there — last step
+                    </CardTitle>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-950/50 dark:text-green-200">
+                      <Check className="h-3 w-3" />
+                      Step 3 of 3
+                    </span>
+                  </div>
+                  <CardDescription>Pick how to pay and you&apos;re done.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {paymentConfig != null &&
