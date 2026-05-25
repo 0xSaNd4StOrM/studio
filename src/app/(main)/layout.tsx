@@ -74,13 +74,20 @@ export default async function MainLayout({
       <ScrollProgress />
       <div className="flex flex-col min-h-screen">
         <style>{`
+          /* Brand-level tokens (apply in both light and dark mode) */
           :root {
             ${primaryHsl ? `--primary: ${primaryHsl};` : ''}
-            ${secondaryHsl ? `--secondary: ${secondaryHsl};` : ''}
             ${accentHsl ? `--accent: ${accentHsl};` : ''}
             ${fontFamily ? `--font-body: ${fontFamily}, sans-serif;` : ''}
             ${headingFont ? `--font-playfair: ${headingFont}, serif;` : ''}
             ${borderRadius && radiusMap[borderRadius] ? `--radius: ${radiusMap[borderRadius]};` : ''}
+          }
+          /* Contextual surface tokens. Agencies typically pick a light-tinted
+             secondary which would invert poorly in dark mode (light bg + light
+             text = unreadable). Scope to light-mode only so dark mode keeps
+             the well-calibrated tokens from globals.css. */
+          :root:not(.dark) {
+            ${secondaryHsl ? `--secondary: ${secondaryHsl};` : ''}
           }
         `}</style>
         <Header />

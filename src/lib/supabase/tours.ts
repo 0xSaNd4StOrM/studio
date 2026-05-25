@@ -41,11 +41,31 @@ function ensureTourDefaults(tour: Tour): Tour {
   // written before the migration applied (or a write skipped the array),
   // fall back to wrapping the singular `destination` so consumers see a
   // sane non-empty array.
+  //
+  // We additionally **clean** the array because an earlier version of the
+  // multi-select combobox could spread a stringly-typed value into
+  // single-character entries (["L","u","x","o","r","Luxor"]). Any entry
+  // shorter than 2 characters can never be a real destination, so drop
+  // those; then dedupe to collapse duplicates from compounding bugs.
+  const rawDestinations = Array.isArray(tour.destinations)
+    ? tour.destinations
+    : tour.destinations
+      ? [String(tour.destinations)]
+      : [];
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of rawDestinations) {
+    const s = typeof entry === 'string' ? entry.trim() : '';
+    if (s.length < 2) continue; // drop single-character spread artifacts
+    if (seen.has(s.toLowerCase())) continue; // dedupe case-insensitively
+    seen.add(s.toLowerCase());
+    cleaned.push(s);
+  }
   const destinations =
-    Array.isArray(tour.destinations) && tour.destinations.length > 0
-      ? tour.destinations
-      : tour.destination
-        ? [tour.destination]
+    cleaned.length > 0
+      ? cleaned
+      : tour.destination && tour.destination.trim().length >= 2
+        ? [tour.destination.trim()]
         : [];
   // Mirror destinations[0] back into the legacy singular so unchanged
   // call sites that read `tour.destination` still see a value.
@@ -246,11 +266,28 @@ export async function addTour(
   } = formData;
   // Keep the legacy single + new array columns in sync server-side so a
   // client that only sends one of them still produces a consistent row.
+  // Also clean: drop single-character spread artifacts and dedupe (defends
+  // against the historical Combobox bug, see ensureTourDefaults).
+  const rawDestSource = Array.isArray(destinations)
+    ? destinations
+    : destinations
+      ? [String(destinations)]
+      : [];
+  const cleanedDestSeen = new Set<string>();
+  const cleanedDestinations: string[] = [];
+  for (const entry of rawDestSource) {
+    const s = typeof entry === 'string' ? entry.trim() : '';
+    if (s.length < 2) continue;
+    const key = s.toLowerCase();
+    if (cleanedDestSeen.has(key)) continue;
+    cleanedDestSeen.add(key);
+    cleanedDestinations.push(s);
+  }
   const normalizedDestinations =
-    Array.isArray(destinations) && destinations.length > 0
-      ? destinations
-      : destination
-        ? [destination]
+    cleanedDestinations.length > 0
+      ? cleanedDestinations
+      : destination && destination.trim().length >= 2
+        ? [destination.trim()]
         : [];
   const normalizedDestination =
     normalizedDestinations[0] ?? destination ?? '';

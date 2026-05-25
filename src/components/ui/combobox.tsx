@@ -52,6 +52,17 @@ export function Combobox({
   const [query, setQuery] = React.useState('');
   const isLargeList = options.length > inlineThreshold;
 
+  // Defensive coercion. If a caller hands us a non-array value (a string
+  // from a corrupted record, or an undefined that got `|| []`-defaulted
+  // to something falsy-but-not-array), we MUST NOT treat it as iterable
+  // characters. Spreading a string in `handleToggle` would explode "Luxor"
+  // into ["L","u","x","o","r"] and compound on every save — that's the
+  // exact bug we fixed in v1 of this component.
+  const safeSelected = React.useMemo<string[]>(
+    () => (Array.isArray(selected) ? selected : []),
+    [selected]
+  );
+
   const visible = React.useMemo(() => {
     if (!query.trim()) return options;
     const q = query.trim().toLowerCase();
@@ -59,10 +70,10 @@ export function Combobox({
   }, [options, query]);
 
   const handleToggle = (value: string) => {
-    if (selected.includes(value)) {
-      onChange(selected.filter((s) => s !== value));
+    if (safeSelected.includes(value)) {
+      onChange(safeSelected.filter((s) => s !== value));
     } else {
-      onChange([...selected, value]);
+      onChange([...safeSelected, value]);
     }
   };
 
@@ -102,7 +113,7 @@ export function Combobox({
             </p>
           ) : (
             visible.map((option) => {
-              const isSelected = selected.includes(option.value);
+              const isSelected = safeSelected.includes(option.value);
               return (
                 <button
                   key={option.value}
@@ -130,11 +141,11 @@ export function Combobox({
         </div>
       )}
 
-      {selected.length > 0 && (
+      {safeSelected.length > 0 && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>
-            {selected.length} selected
-            {selected.length > 1 && ` of ${options.length}`}
+            {safeSelected.length} selected
+            {safeSelected.length > 1 && ` of ${options.length}`}
           </span>
           <Button
             type="button"
@@ -149,7 +160,7 @@ export function Combobox({
         </div>
       )}
 
-      {selected.length === 0 && (
+      {safeSelected.length === 0 && (
         <p className="text-xs text-muted-foreground">{placeholder}</p>
       )}
     </div>

@@ -78,27 +78,27 @@ function TopBar({
   socialMedia?: SettingsData['socialMedia'];
 }) {
   return (
-    <div className="bg-secondary text-secondary-foreground text-sm py-2 border-b">
+    <div className="bg-secondary text-secondary-foreground dark:bg-card dark:text-foreground text-sm py-2 border-b">
       <div className="container flex justify-between items-center max-w-screen-2xl">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 text-foreground/85 dark:text-foreground/90">
           {contactEmail ? (
             <a
               href={`mailto:${contactEmail}`}
-              className="flex items-center gap-2 hover:text-primary"
+              className="flex items-center gap-2 hover:text-primary transition-colors"
             >
-              <Mail className="w-4 h-4" />
+              <Mail className="w-4 h-4 shrink-0" />
               <span>{contactEmail}</span>
             </a>
           ) : null}
           {phoneNumber ? (
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
+              <Phone className="w-4 h-4 shrink-0" />
               <span>{phoneNumber}</span>
             </div>
           ) : null}
           {address ? (
             <div className="hidden md:flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
+              <MapPin className="w-4 h-4 shrink-0" />
               <span>{address}</span>
             </div>
           ) : null}
