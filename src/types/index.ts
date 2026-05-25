@@ -37,7 +37,14 @@ export type Tour = {
   id: string;
   slug: string;
   name: string;
+  /**
+   * Legacy single destination, kept in sync with `destinations[0]`.
+   * Prefer `destinations` for new code — but reading `destination`
+   * remains safe for unchanged call sites.
+   */
   destination: string;
+  /** Ordered list of destinations the tour covers. First element mirrors `destination`. */
+  destinations: string[];
   type: string[];
   duration: number; // in days
   description: string;

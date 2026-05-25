@@ -152,12 +152,28 @@ export const columns: ColumnDef<Tour>[] = [
   {
     accessorKey: 'destination',
     header: 'Destination',
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <MapPin className="h-4 w-4 text-muted-foreground" />
-        <span className="truncate">{row.getValue('destination')}</span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const tour = row.original;
+      const list =
+        Array.isArray(tour.destinations) && tour.destinations.length > 0
+          ? tour.destinations
+          : tour.destination
+            ? [tour.destination]
+            : [];
+      const display = list.length > 1 ? list.join(' · ') : list[0] ?? '';
+      return (
+        <div
+          className="flex items-center gap-2"
+          title={list.length > 1 ? list.join(', ') : undefined}
+        >
+          <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="truncate">{display}</span>
+          {list.length > 1 && (
+            <span className="text-xs text-muted-foreground shrink-0">+{list.length - 1}</span>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'type',

@@ -18,13 +18,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -87,7 +80,13 @@ export const formSchema = z
         /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
         'Slug must be lowercase with words separated by dashes.'
       ),
-    destination: z.string().min(1, 'Please select a destination.'),
+    // Legacy single destination — kept in sync with `destinations[0]` server-side.
+    // `destinations` is the source of truth; the singular field is preserved
+    // for backwards compatibility with read sites that haven't been migrated yet.
+    destination: z.string().min(1, 'Please select at least one destination.'),
+    destinations: z
+      .array(z.string())
+      .min(1, 'Select at least one destination.'),
     type: z.array(z.string()).refine((value) => value.length > 0, {
       message: 'You have to select at least one item.',
     }),
@@ -480,6 +479,17 @@ export function TourForm({
     defaultValues: initialData
       ? {
           ...initialData,
+          // Backfill `destinations` from the legacy singular when an existing
+          // tour was last saved before multi-destination was wired through
+          // the form. The DB migration already populates the column, but
+          // initialData may come from a code path that hasn't been redeployed.
+          destinations:
+            Array.isArray(initialData.destinations) &&
+            initialData.destinations.length > 0
+              ? initialData.destinations
+              : initialData.destination
+                ? [initialData.destination]
+                : [],
           highlights: initialData.highlights?.map((h) => ({ value: h })) ?? [{ value: '' }],
           includes: initialData.includes?.map((i) => ({ value: i })) ?? [{ value: '' }],
           excludes: initialData.excludes?.map((e) => ({ value: e })) ?? [{ value: '' }],
@@ -490,7 +500,8 @@ export function TourForm({
       : {
           name: '',
           slug: '',
-          destination: undefined,
+          destination: '',
+          destinations: [],
           duration: 1,
           description: '',
           images: [],
@@ -832,30 +843,37 @@ export function TourForm({
                     <div className="grid sm:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
-                        name="destination"
+                        name="destinations"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Destination</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select destination" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {destinationOptions.length > 0 ? (
-                                  destinationOptions.map((destination) => (
-                                    <SelectItem key={destination} value={destination}>
-                                      {destination}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <div className="p-2 text-sm text-muted-foreground text-center">
-                                    No destinations found. Add some in settings.
-                                  </div>
-                                )}
-                              </SelectContent>
-                            </Select>
+                            <FormLabel>Destinations</FormLabel>
+                            <FormDescription>
+                              Pick one or more — the first selection is the primary destination
+                              shown on cards and breadcrumbs.
+                            </FormDescription>
+                            {destinationOptions.length > 0 ? (
+                              <Combobox
+                                options={destinationOptions.map((d) => ({ value: d, label: d }))}
+                                selected={field.value || []}
+                                onChange={(next) => {
+                                  field.onChange(next);
+                                  // Keep the legacy singular `destination` in sync with
+                                  // the first selection. The server reconciles too, but
+                                  // doing it here means form-level validation sees a
+                                  // populated value immediately.
+                                  form.setValue('destination', next[0] ?? '', {
+                                    shouldValidate: true,
+                                    shouldDirty: true,
+                                  });
+                                }}
+                                placeholder="Select destinations…"
+                                className="w-full"
+                              />
+                            ) : (
+                              <div className="rounded-md border border-dashed border-input bg-muted/30 p-3 text-sm text-muted-foreground text-center">
+                                No destinations defined. Add some in Tour Settings first.
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
@@ -871,7 +889,7 @@ export function TourForm({
                               options={categoriesOptions}
                               selected={field.value || []}
                               onChange={field.onChange}
-                              placeholder="Select categories..."
+                              placeholder="Select categories…"
                               className="w-full"
                             />
                             <FormMessage />

@@ -12,6 +12,7 @@ import { translateObject, translateObjects } from '@/lib/translation/translate-o
 const TOUR_TRANSLATABLE_FIELDS = [
   'name',
   'destination',
+  'destinations[]',
   'description',
   'durationText',
   'tourType',
@@ -36,8 +37,25 @@ type GetToursOptions = {
 };
 
 function ensureTourDefaults(tour: Tour): Tour {
+  // `destinations` is the source of truth post-migration. If a row was
+  // written before the migration applied (or a write skipped the array),
+  // fall back to wrapping the singular `destination` so consumers see a
+  // sane non-empty array.
+  const destinations =
+    Array.isArray(tour.destinations) && tour.destinations.length > 0
+      ? tour.destinations
+      : tour.destination
+        ? [tour.destination]
+        : [];
+  // Mirror destinations[0] back into the legacy singular so unchanged
+  // call sites that read `tour.destination` still see a value.
+  const destination =
+    destinations.length > 0 ? destinations[0] : (tour.destination ?? '');
+
   return {
     ...tour,
+    destination,
+    destinations,
     images: Array.isArray(tour.images) ? tour.images : [],
     type: Array.isArray(tour.type) ? tour.type : [],
     itinerary: Array.isArray(tour.itinerary) ? tour.itinerary : [],
@@ -67,7 +85,10 @@ export async function getTours(options: GetToursOptions = {}): Promise<Tour[]> {
     query = query.ilike('name', `%${q.trim()}%`);
   }
   if (destination && destination.trim()) {
-    query = query.ilike('destination', destination.trim());
+    // Match tours that include this destination anywhere in their
+    // `destinations` array. The GIN index `idx_tours_destinations_gin`
+    // makes this index-backed.
+    query = query.contains('destinations', [destination.trim()]);
   }
   if (type && type.trim()) {
     query = query.contains('type', [type.trim()]);
@@ -116,7 +137,10 @@ export async function getToursPaged(
     query = query.ilike('name', `%${q.trim()}%`);
   }
   if (destination && destination.trim()) {
-    query = query.ilike('destination', destination.trim());
+    // Match tours that include this destination anywhere in their
+    // `destinations` array. The GIN index `idx_tours_destinations_gin`
+    // makes this index-backed.
+    query = query.contains('destinations', [destination.trim()]);
   }
   if (type && type.trim()) {
     query = query.contains('type', [type.trim()]);
@@ -216,10 +240,24 @@ export async function addTour(
     availabilityDescription,
     pickupAndDropoff,
     cancellationPolicy,
+    destination,
+    destinations,
     ...rest
   } = formData;
+  // Keep the legacy single + new array columns in sync server-side so a
+  // client that only sends one of them still produces a consistent row.
+  const normalizedDestinations =
+    Array.isArray(destinations) && destinations.length > 0
+      ? destinations
+      : destination
+        ? [destination]
+        : [];
+  const normalizedDestination =
+    normalizedDestinations[0] ?? destination ?? '';
   const dbData = {
     ...rest,
+    destination: normalizedDestination,
+    destinations: normalizedDestinations,
     images: imageUrls.length > 0 ? imageUrls : rest.images, // Use new URLs or keep old ones if no new files were uploaded
     // Clear legacy priceTiers when using packages to avoid stale data
     price_tiers: packages && packages.length > 0 ? [] : (priceTiers ?? []),
@@ -304,10 +342,24 @@ export async function updateTour(id: string, formData: Omit<Tour, 'id'>) {
     availabilityDescription,
     pickupAndDropoff,
     cancellationPolicy,
+    destination,
+    destinations,
     ...rest
   } = formData;
+  // Mirror addTour: keep legacy `destination` and new `destinations` array
+  // in sync server-side regardless of which the client populated.
+  const normalizedDestinations =
+    Array.isArray(destinations) && destinations.length > 0
+      ? destinations
+      : destination
+        ? [destination]
+        : [];
+  const normalizedDestination =
+    normalizedDestinations[0] ?? destination ?? '';
   const dbData = {
     ...rest,
+    destination: normalizedDestination,
+    destinations: normalizedDestinations,
     images: imageUrls.length > 0 ? imageUrls : rest.images, // Use new URLs or keep old ones if no new files were uploaded
     // Clear legacy priceTiers when using packages to avoid stale data
     price_tiers: packages && packages.length > 0 ? [] : (priceTiers ?? []),

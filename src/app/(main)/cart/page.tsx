@@ -530,11 +530,22 @@ export default function CartPage() {
                                     ? t('cart.tourBadge')
                                     : t('cart.addonBadge')}
                                 </Badge>
-                                {item.productType === 'tour' && (
-                                  <Badge variant="outline">
-                                    {(item.product as Tour).destination}
-                                  </Badge>
-                                )}
+                                {item.productType === 'tour' &&
+                                  (() => {
+                                    const tour = item.product as Tour;
+                                    const list =
+                                      tour.destinations && tour.destinations.length > 0
+                                        ? tour.destinations
+                                        : tour.destination
+                                          ? [tour.destination]
+                                          : [];
+                                    if (list.length === 0) return null;
+                                    return (
+                                      <Badge variant="outline">
+                                        {list.length > 1 ? list.join(' · ') : list[0]}
+                                      </Badge>
+                                    );
+                                  })()}
                                 {item.packageName && (
                                   <Badge variant="outline">{item.packageName}</Badge>
                                 )}

@@ -187,7 +187,13 @@ export function TourDetailsClient({ tour, availability = [] }: TourDetailsClient
           <CardContent>
             <div className="grid grid-cols-2 gap-4 text-sm mb-6">
               <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" /> <span>{tour.destination}</span>
+                <MapPin className="h-5 w-5 text-primary" />{' '}
+                <span>
+                  {/* Show every destination when a tour spans more than one. */}
+                  {tour.destinations && tour.destinations.length > 1
+                    ? tour.destinations.join(' · ')
+                    : tour.destination}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-primary" />{' '}

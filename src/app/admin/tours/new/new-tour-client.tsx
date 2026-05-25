@@ -171,11 +171,25 @@ function mapTourDraftToTour(value: unknown): Tour | null {
     ? draft.images.filter((item): item is string => typeof item === 'string' && item.length > 0)
     : [];
 
+  // Multi-destination support: prefer an imported `destinations` array,
+  // fall back to wrapping the singular `destination` so AI/import flows
+  // stay backwards-compatible.
+  const importedDestinations = toStringArray(
+    (draft as Record<string, unknown>).destinations
+  );
+  const destinations =
+    importedDestinations.length > 0
+      ? importedDestinations
+      : destination
+        ? [destination]
+        : [];
+
   return {
     id: getStringValue(draft.id) ?? crypto.randomUUID(),
     name: name ?? '',
     slug,
-    destination,
+    destination: destinations[0] ?? destination,
+    destinations,
     type: toStringArray(draft.type ?? draft.categories ?? draft.tourStyle),
     duration: Math.max(1, Math.round(toNumber(draft.duration ?? draft.durationDays, 1))),
     description,
