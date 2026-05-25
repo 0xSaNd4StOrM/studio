@@ -24,7 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { MagneticWrap } from '@/components/motion';
 import { CountrySelect } from '@/components/country-select';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCart } from '@/hooks/use-cart';
 import { useCurrency } from '@/hooks/use-currency';
@@ -204,6 +204,10 @@ export default function CheckoutPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    // `onChange` gives instant feedback as the user types — green checks on
+    // valid fields, red border + helper on invalid. Errors don't surface on
+    // an empty form because untouched fields stay in their initial state.
+    mode: 'onChange',
     defaultValues: {
       name: '',
       email: '',
@@ -1103,64 +1107,89 @@ export default function CheckoutPage() {
                   <FormField
                     control={form.control}
                     name="name"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>{t('checkout.fullName')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="John Doe"
-                            autoComplete="name"
-                            autoCapitalize="words"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field, fieldState }) => {
+                      const isValid =
+                        !fieldState.invalid && field.value && field.value.trim().length > 0;
+                      return (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>{t('checkout.fullName')}</FormLabel>
+                          <FormControl>
+                            <FieldWithValid valid={!!isValid} invalid={fieldState.invalid}>
+                              <Input
+                                placeholder="John Doe"
+                                autoComplete="name"
+                                autoCapitalize="words"
+                                {...field}
+                              />
+                            </FieldWithValid>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}
                     name="email"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-1">
-                        <FormLabel>{t('checkout.emailAddress')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            inputMode="email"
-                            placeholder="you@example.com"
-                            autoComplete="email"
-                            autoCapitalize="none"
-                            spellCheck={false}
-                            {...field}
-                          />
-                        </FormControl>
-                        <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <ShieldCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
-                          We&apos;ll send your voucher here. Never shared.
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field, fieldState }) => {
+                      const isValid =
+                        !fieldState.invalid && field.value && field.value.trim().length > 0;
+                      return (
+                        <FormItem className="sm:col-span-1">
+                          <FormLabel>{t('checkout.emailAddress')}</FormLabel>
+                          <FormControl>
+                            <FieldWithValid valid={!!isValid} invalid={fieldState.invalid}>
+                              <Input
+                                type="email"
+                                inputMode="email"
+                                placeholder="you@example.com"
+                                autoComplete="email"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                {...field}
+                              />
+                            </FieldWithValid>
+                          </FormControl>
+                          {isValid ? (
+                            <p className="inline-flex items-center gap-1 text-[11px] font-medium text-green-700 dark:text-green-400">
+                              <Check className="h-3 w-3" />
+                              Looks good — your voucher will arrive here.
+                            </p>
+                          ) : (
+                            <p className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <ShieldCheck className="h-3 w-3 text-green-600 dark:text-green-400" />
+                              We&apos;ll send your voucher here. Never shared.
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}
                     name="phoneNumber"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-1">
-                        <FormLabel>{t('checkout.phoneNumber')}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="tel"
-                            inputMode="tel"
-                            placeholder="+1 (555) 123-4567"
-                            autoComplete="tel"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field, fieldState }) => {
+                      const isValid =
+                        !fieldState.invalid && field.value && field.value.trim().length > 0;
+                      return (
+                        <FormItem className="sm:col-span-1">
+                          <FormLabel>{t('checkout.phoneNumber')}</FormLabel>
+                          <FormControl>
+                            <FieldWithValid valid={!!isValid} invalid={fieldState.invalid}>
+                              <Input
+                                type="tel"
+                                inputMode="tel"
+                                placeholder="+1 (555) 123-4567"
+                                autoComplete="tel"
+                                {...field}
+                              />
+                            </FieldWithValid>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}
@@ -1573,6 +1602,45 @@ export default function CheckoutPage() {
 // ---------------------------------------------------------------------------
 // Local subcomponents
 // ---------------------------------------------------------------------------
+
+/**
+ * FieldWithValid — wraps an Input (or any rect-shaped control) with a
+ * floating ✓ icon on success and a red ring on invalid. Adds a small
+ * trailing pad to the child input so the icon doesn't sit on text.
+ *
+ * Composes by cloning the child + injecting class names; saves having
+ * to thread `valid`/`invalid` props through every Input call site.
+ */
+function FieldWithValid({
+  valid,
+  invalid,
+  children,
+}: {
+  valid: boolean;
+  invalid: boolean;
+  children: React.ReactElement;
+}) {
+  const child = children as React.ReactElement<{ className?: string }>;
+  const extraClass = cn(
+    'pr-9',
+    valid && 'border-green-500 focus-visible:ring-green-500',
+    invalid && 'border-red-400 focus-visible:ring-red-400'
+  );
+  const cloned = React.cloneElement(child, {
+    className: cn(child.props.className, extraClass),
+  });
+  return (
+    <span className="relative block">
+      {cloned}
+      {valid && (
+        <Check
+          className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-green-600 dark:text-green-400"
+          aria-hidden
+        />
+      )}
+    </span>
+  );
+}
 
 type UpsellOptionProps = {
   upsell: UpsellItem;
