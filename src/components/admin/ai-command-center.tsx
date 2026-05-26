@@ -17,7 +17,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Sparkles, Clipboard, ClipboardCheck, Rocket } from 'lucide-react';
+import { Loader2, Sparkles, Clipboard, ClipboardCheck, Rocket, Plug } from 'lucide-react';
+import Link from 'next/link';
 
 const BLOG_DRAFT_STORAGE_KEY = 'admin-ai-blog-draft';
 const TOUR_DRAFT_STORAGE_KEY = 'admin-ai-tour-draft';
@@ -80,6 +81,31 @@ function formatPlanSections(plan: TailorMadePlanResult): string {
     '',
     `Total Price Estimate: ${plan.totalPriceEstimate}`,
   ].join('\n');
+}
+
+export function AiCommandCenterConnectPrompt() {
+  return (
+    <Card className="border-dashed">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5" />
+          AI Command Center
+        </CardTitle>
+        <CardDescription>
+          Connect your GitHub Copilot subscription to unlock blog drafts, tour bootstraps, and
+          advanced tailor-made plans for this agency.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild>
+          <Link href="/admin/settings#copilot">
+            <Plug className="mr-2 h-4 w-4" />
+            Connect GitHub Copilot
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function AiCommandCenter() {

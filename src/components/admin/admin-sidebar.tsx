@@ -38,6 +38,9 @@ import {
   Building2,
   Star,
   ChevronRight,
+  Bot,
+  Sparkles,
+  ScrollText,
 } from 'lucide-react';
 import { AdminCommandBarTrigger } from '@/components/admin/command-bar';
 import { Logo } from '@/components/logo';
@@ -74,6 +77,10 @@ const getPageTitle = (pathname: string, t: (k: string) => string) => {
   if (pathname.startsWith('/admin/promotions')) return t('admin.promotions');
   if (pathname.startsWith('/admin/reviews')) return t('admin.reviews');
   if (pathname.startsWith('/admin/contact-messages')) return t('admin.contactMessages');
+  if (pathname.startsWith('/admin/ai/concierge')) return 'AI Concierge';
+  if (pathname.startsWith('/admin/ai/skills')) return 'AI Skills';
+  if (pathname.startsWith('/admin/ai/audit')) return 'AI Audit';
+  if (pathname.startsWith('/admin/ai')) return 'AI';
   if (pathname.startsWith('/admin/settings')) return t('admin.settings');
   return t('admin.admin');
 };
@@ -161,6 +168,14 @@ export function AdminSidebar({
           icon: LayoutDashboard,
         },
         { href: '/admin/blog', label: t('admin.blog'), icon: Newspaper },
+      ],
+    },
+    {
+      label: 'AI',
+      items: [
+        { href: '/admin/ai/concierge', label: 'AI Concierge', icon: Bot },
+        { href: '/admin/ai/skills', label: 'AI Skills', icon: Sparkles },
+        { href: '/admin/ai/audit', label: 'AI Audit', icon: ScrollText },
       ],
     },
     {

@@ -20,7 +20,6 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -32,13 +31,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/image-uploader';
 import { createClient } from '@/lib/supabase/client';
 import { Combobox } from '@/components/ui/combobox';
 import { Switch } from '@/components/ui/switch';
-import { useEffect, useState, useActionState, useRef } from 'react';
-import { generateBlogPostAction } from '@/app/actions';
+import { useEffect, useState, useRef } from 'react';
 import { HtmlEditorToolbar } from '@/components/admin/html-editor-toolbar';
 import type { Post } from '@/types';
 
@@ -115,30 +113,9 @@ const formSchema = z.object({
   status: z.enum(['Published', 'Draft']),
   tags: z.array(z.string()).optional(),
   featuredImage: z.array(z.any()).optional(),
-  topic: z.string().optional(),
   keywords: z.string().optional(),
   isFeatured: z.boolean().optional(),
 });
-
-function GenerateButton({ pending }: { pending: boolean }) {
-  return (
-    <Button
-      type="submit"
-      name="action"
-      value="generate"
-      disabled={pending}
-      variant="outline"
-      className="w-full mt-2 md:mt-0 md:w-auto"
-    >
-      {pending ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <Sparkles className="mr-2 h-4 w-4" />
-      )}
-      Generate Content
-    </Button>
-  );
-}
 
 export default function EditPostPage() {
   const params = useParams();
@@ -147,11 +124,6 @@ export default function EditPostPage() {
   const isNewPost = slug === 'new';
   const [post, setPost] = useState<Post | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
-
-  const [aiState, formAction, isGenerating] = useActionState(generateBlogPostAction, {
-    message: '',
-    content: '',
-  });
 
   const contentTextAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -165,7 +137,6 @@ export default function EditPostPage() {
       status: 'Draft',
       tags: [],
       featuredImage: [],
-      topic: '',
       keywords: '',
       isFeatured: false,
     },
@@ -209,15 +180,6 @@ export default function EditPostPage() {
   }, [slug, isNewPost]);
 
   useEffect(() => {
-    if (aiState.content) {
-      form.setValue('content', aiState.content, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-  }, [aiState.content, form]);
-
-  useEffect(() => {
     if (!isNewPost || post) return;
 
     try {
@@ -256,15 +218,6 @@ export default function EditPostPage() {
   if (!isNewPost && !post) {
     return <div>Post not found.</div>;
   }
-
-  const handleFormAction = (formData: FormData) => {
-    const action = (formData.get('action') as string) || 'submit';
-    if (action === 'generate') {
-      formAction(formData);
-    } else {
-      form.handleSubmit(onSubmit)();
-    }
-  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const supabase = createClient();
@@ -335,7 +288,7 @@ export default function EditPostPage() {
         </div>
       </div>
       <Form {...form}>
-        <form action={handleFormAction} className="space-y-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-6">
               <Card>
@@ -372,62 +325,6 @@ export default function EditPostPage() {
                       </FormItem>
                     )}
                   />
-
-                  <Card className="bg-muted/50">
-                    <CardHeader>
-                      <CardTitle className="text-lg">AI Content Generator</CardTitle>
-                      <CardDescription>
-                        Provide a topic and keywords, and let AI draft the content for you.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-4">
-                        <FormField
-                          control={form.control}
-                          name="topic"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Topic</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="e.g., A 3-day itinerary for Luxor"
-                                  disabled={isGenerating}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="keywords"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Keywords (optional)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="e.g., family friendly, budget, historical sites"
-                                  disabled={isGenerating}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                Comma-separated keywords to guide the AI.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <div className="flex justify-end mt-4">
-                        <GenerateButton pending={isGenerating} />
-                      </div>
-                      {aiState.message && aiState.message !== 'Success' && (
-                        <p className="text-sm text-destructive mt-2">{aiState.message}</p>
-                      )}
-                    </CardContent>
-                  </Card>
 
                   <FormField
                     control={form.control}
@@ -529,24 +426,17 @@ export default function EditPostPage() {
                   />
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                  <Button
-                    type="submit"
-                    name="action"
-                    value="submit"
-                    disabled={isGenerating || form.formState.isSubmitting}
-                  >
-                    {(isGenerating || form.formState.isSubmitting) && (
+                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    {isGenerating
-                      ? 'Generating...'
-                      : form.formState.isSubmitting
-                        ? isNewPost
-                          ? 'Creating...'
-                          : 'Saving...'
-                        : isNewPost
-                          ? 'Create Post'
-                          : 'Save Changes'}
+                    {form.formState.isSubmitting
+                      ? isNewPost
+                        ? 'Creating...'
+                        : 'Saving...'
+                      : isNewPost
+                        ? 'Create Post'
+                        : 'Save Changes'}
                   </Button>
                 </CardFooter>
               </Card>

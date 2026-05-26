@@ -1,7 +1,9 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { getAgencySettings } from '@/lib/supabase/agency-content';
+import { getCurrentAgency } from '@/lib/supabase/agencies';
 import { WhatsAppChatButton } from '@/components/whatsapp-chat-button';
+import { ConciergeChatWidget } from '@/components/concierge/concierge-chat-widget';
 import { SettingsProvider } from '@/components/providers/settings-provider';
 import { ScrollProgress } from '@/components/motion/scroll-progress';
 import { PageTransition } from '@/components/motion/page-transition';
@@ -48,9 +50,12 @@ export default async function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = await getAgencySettings();
+  const [settings, agency] = await Promise.all([getAgencySettings(), getCurrentAgency()]);
   const theme = settings?.data?.theme;
   const phoneNumber = settings?.data?.phoneNumber;
+  const aiEnabled = Boolean(agency?.aiEnabled);
+  const aiConfigPublic = agency?.aiConfigPublic ?? null;
+  const conciergeEnabled = aiEnabled && Boolean(aiConfigPublic?.showConciergeWidget);
 
   const primaryHsl = theme?.primaryColor ? hexToHsl(theme.primaryColor) : null;
   const secondaryHsl = theme?.secondaryColor ? hexToHsl(theme.secondaryColor) : null;
@@ -67,7 +72,15 @@ export default async function MainLayout({
     full: '9999px',
   };
 
-  const settingsValue = settings ? { data: settings.data, logo_url: settings.logo_url } : null;
+  const settingsValue = settings
+    ? {
+        data: settings.data,
+        logo_url: settings.logo_url,
+        aiEnabled,
+        agencyId: agency?.id ?? null,
+        aiConfigPublic,
+      }
+    : null;
 
   return (
     <SettingsProvider value={settingsValue}>
@@ -96,6 +109,15 @@ export default async function MainLayout({
         </main>
         <Footer />
         {phoneNumber && <WhatsAppChatButton phone={phoneNumber} />}
+        {conciergeEnabled && agency && aiConfigPublic && (
+          <ConciergeChatWidget
+            agencyId={agency.id}
+            agentName={aiConfigPublic.agentName}
+            greeting={aiConfigPublic.greeting}
+            greetingDelaySeconds={aiConfigPublic.greetingDelaySeconds}
+            hasWhatsApp={Boolean(phoneNumber)}
+          />
+        )}
       </div>
     </SettingsProvider>
   );

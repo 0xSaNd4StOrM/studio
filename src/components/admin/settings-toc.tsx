@@ -42,6 +42,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
 
   // Operations
   { id: 'email', label: 'Email notifications', group: 'Operations', keywords: 'resend sender from booking confirmation' },
+  { id: 'copilot', label: 'AI & Copilot', group: 'Setup', keywords: 'ai copilot github model gpt claude' },
 
   // Payments
   { id: 'payments', label: 'Payment methods', group: 'Payments', keywords: 'cash online checkout' },

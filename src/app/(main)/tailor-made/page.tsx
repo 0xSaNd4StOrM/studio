@@ -1,7 +1,9 @@
 import React from 'react';
+import { redirect } from 'next/navigation';
 import { TailorMadePageContent } from './tailor-made-content';
 import { Metadata } from 'next';
 import { getPageMetadata } from '@/lib/supabase/agency-content';
+import { getCurrentAgency } from '@/lib/supabase/agencies';
 
 export async function generateMetadata(): Promise<Metadata> {
   return getPageMetadata('tailorMade', {
@@ -10,6 +12,10 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function TailorMadePage() {
+export default async function TailorMadePage() {
+  const agency = await getCurrentAgency();
+  if (!agency?.aiEnabled) {
+    redirect('/tours');
+  }
   return <TailorMadePageContent />;
 }

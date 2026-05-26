@@ -33,7 +33,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin/', '/super-admin/', '/api/'],
+        disallow: ['/admin/', '/super-admin/', '/api/', '/booking/'],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

@@ -2,10 +2,14 @@
 
 import React from 'react';
 import type { AgencySettingsData } from '@/lib/supabase/agency-content';
+import type { AgencyAiConfigPublic } from '@/types/agency';
 
 export type AgencySettings = {
   data: AgencySettingsData;
   logo_url: string | null;
+  aiEnabled: boolean;
+  agencyId: string | null;
+  aiConfigPublic: AgencyAiConfigPublic | null;
 };
 
 const SettingsContext = React.createContext<AgencySettings | null>(null);

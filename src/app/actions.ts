@@ -1,9 +1,8 @@
 'use server';
 
-import { generateBlogPost } from '@/ai/flows/generate-blog-post';
 import { suggestAlternativeTours } from '@/ai/flows/suggest-alternative-tours';
 import { generateTourFlow } from '@/ai/flows/generateTour';
-import { generateStructuredWithOpenRouter } from '@/lib/ai/openrouter';
+import { generateStructuredWithCopilot } from '@/lib/ai/copilot';
 import { createClient } from '@/lib/supabase/server';
 import { TourInputSchema, TourOutput } from '@/types/tour-schemas';
 import { z } from 'zod';
@@ -115,55 +114,6 @@ export async function getAiSuggestions(
   }
 }
 
-// For AI Blog Post Generation
-const BlogPostActionInputSchema = z.object({
-  topic: z.string().min(5, { message: 'Please enter a topic with at least 5 characters.' }),
-  keywords: z.string().optional(),
-});
-
-type BlogPostState = {
-  message: string;
-  content: string;
-};
-
-export async function generateBlogPostAction(
-  prevState: BlogPostState,
-  formData: FormData
-): Promise<BlogPostState> {
-  try {
-    const rawInput = {
-      topic: formData.get('topic') as string,
-      keywords: formData.get('keywords') as string,
-    };
-
-    const validatedInput = BlogPostActionInputSchema.safeParse(rawInput);
-
-    if (!validatedInput.success) {
-      return {
-        message: validatedInput.error.issues[0]?.message ?? 'Invalid input.',
-        content: '',
-      };
-    }
-
-    const result = await generateBlogPost(validatedInput.data);
-
-    if (!result.content) {
-      return {
-        message: 'Could not generate content based on the topic.',
-        content: '',
-      };
-    }
-
-    return { message: 'Success', content: result.content };
-  } catch (error) {
-    console.error(error);
-    return {
-      message: 'An unexpected error occurred. Please try again.',
-      content: '',
-    };
-  }
-}
-
 // For Tailor Made Tour
 export type TourGenerationState = {
   success: boolean;
@@ -242,7 +192,8 @@ export async function generateSeoAssistAction(
     const scopeLabel =
       validated.data.scope === 'site' ? 'Site Defaults' : `${validated.data.scope} Page`;
 
-    const output = await generateStructuredWithOpenRouter({
+    const output = await generateStructuredWithCopilot({
+      feature: 'seo-assist',
       schema: SeoAssistOutputSchema,
       systemPrompt:
         'You are an SEO strategist for a travel agency website. Return strict JSON only and keep metadata concise.',
@@ -315,7 +266,8 @@ export async function generateBlogDraftForAdminAction(
       };
     }
 
-    const output = await generateStructuredWithOpenRouter({
+    const output = await generateStructuredWithCopilot({
+      feature: 'blog-draft',
       schema: BlogDraftForAdminOutputSchema,
       systemPrompt:
         'You are a senior travel content strategist. Return valid JSON only and ensure contentHtml contains semantic HTML.',
@@ -468,7 +420,8 @@ export async function generateTourDraftForAdminAction(
       };
     }
 
-    const output = await generateStructuredWithOpenRouter({
+    const output = await generateStructuredWithCopilot({
+      feature: 'tour-draft',
       schema: TourDraftForAdminOutputSchema,
       systemPrompt:
         'You are an expert tourism product manager creating publishable tour drafts for an admin dashboard. Return strict JSON only.',
@@ -607,7 +560,8 @@ export async function generateAdvancedTailorMadePlanAction(
       };
     }
 
-    const output = await generateStructuredWithOpenRouter({
+    const output = await generateStructuredWithCopilot({
+      feature: 'advanced-plan',
       schema: AdvancedTailorMadePlanOutputSchema,
       systemPrompt:
         'You are a senior luxury travel consultant creating advanced tailor-made itineraries for operations teams. Return strict JSON only.',

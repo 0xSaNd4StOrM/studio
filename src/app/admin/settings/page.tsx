@@ -45,6 +45,8 @@ import { AlertTriangle, Loader2, SendHorizonal, Sparkles } from 'lucide-react';
 import { sendTestEmail } from './actions';
 import { ThemeEditor } from '@/components/admin/theme-editor';
 import { SettingsToc } from '@/components/admin/settings-toc';
+import { CopilotConnectCard } from '@/components/admin/copilot-connect-card';
+import { getCopilotStatusForAdmin } from '@/app/admin/settings/copilot-actions';
 import { UnsavedChangesWarning } from '@/components/admin/unsaved-changes-warning';
 import {
   Dialog,
@@ -690,6 +692,29 @@ export default function SettingsPage() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiResult, setAiResult] = useState<SeoAssistResult | null>(null);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCopilotStatusForAdmin()
+      .then((status) => {
+        if (!cancelled) setAiEnabled(Boolean(status?.connected));
+      })
+      .catch(() => {
+        /* keep aiEnabled=false */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const warnAiNotConnected = () => {
+    toast({
+      title: 'AI not connected',
+      description: 'Connect GitHub Copilot in the AI & Copilot section to enable AI suggestions.',
+      variant: 'destructive',
+    });
+  };
   const handleAiOpenChange = (open: boolean) => {
     setAiOpen(open);
     if (!open) {
@@ -700,6 +725,10 @@ export default function SettingsPage() {
   };
 
   const openAiForSingle = (target: Omit<Extract<AiTarget, { kind: 'single' }>, 'kind'>) => {
+    if (!aiEnabled) {
+      warnAiNotConnected();
+      return;
+    }
     setAiTarget({ kind: 'single', ...target });
     setAiPrompt('');
     setAiResult(null);
@@ -707,6 +736,10 @@ export default function SettingsPage() {
   };
 
   const openAiForGroup = (target: Omit<Extract<AiTarget, { kind: 'group' }>, 'kind'>) => {
+    if (!aiEnabled) {
+      warnAiNotConnected();
+      return;
+    }
     setAiTarget({ kind: 'group', ...target });
     setAiPrompt('');
     setAiResult(null);
@@ -1486,6 +1519,8 @@ export default function SettingsPage() {
               </Button>
             </CardFooter>
           </Card>
+
+          <CopilotConnectCard />
 
           <Card id="general" className="scroll-mt-24">
             <CardHeader>

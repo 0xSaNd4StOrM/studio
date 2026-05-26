@@ -4,7 +4,7 @@ import { OverviewChart } from '@/components/admin/overview-chart';
 import { RecentSales } from '@/components/admin/recent-sales';
 import { PeriodSelector } from '@/components/admin/period-selector';
 import { GettingStarted } from '@/components/admin/getting-started';
-import { AiCommandCenter } from '@/components/admin/ai-command-center';
+import { AiCommandCenter, AiCommandCenterConnectPrompt } from '@/components/admin/ai-command-center';
 import { ThisWeekFeed } from '@/components/admin/this-week-feed';
 import { getBookings } from '@/lib/supabase/bookings';
 import { getCustomers } from '@/lib/supabase/customers';
@@ -309,7 +309,7 @@ export default async function AdminDashboard({
         </Card>
       </div>
 
-      <AiCommandCenter />
+      {agency?.aiEnabled ? <AiCommandCenter /> : <AiCommandCenterConnectPrompt />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4 rounded-lg shadow-sm">

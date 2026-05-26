@@ -34,6 +34,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { generateTailorMadeTourAction } from '@/app/actions';
 import { CheckoutStepper, type CheckoutStep } from '@/components/checkout/checkout-stepper';
+import { TailorMadeChatPanel } from '@/components/tailor-made/tailor-made-chat-panel';
+import { useSettings } from '@/components/providers/settings-provider';
 
 const FormSchema = z.object({
   arrivalDate: z.date({
@@ -202,9 +204,16 @@ function formatDateValue(date?: Date | null): string {
 export function TailorMadeForm() {
   const { toast } = useToast();
   const formTopRef = useRef<HTMLDivElement | null>(null);
+  const settings = useSettings();
+  const agencyId = settings?.agencyId ?? null;
+  const aiEnabled = Boolean(settings?.aiEnabled);
 
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<TourResult | null>(null);
+  // Stable per-result identifier — used to key the chat session so the
+  // conversation survives revisions but resets when the visitor starts a
+  // new tour from scratch.
+  const [chatAnchorId, setChatAnchorId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [submitErrorMessage, setSubmitErrorMessage] = useState<string | null>(null);
 
@@ -322,6 +331,7 @@ export function TailorMadeForm() {
 
       if (response.success && response.data) {
         setResult(response.data);
+        setChatAnchorId(crypto.randomUUID());
         toast({
           title: 'Tour Generated!',
           description: 'Your personalized itinerary is ready.',
@@ -397,8 +407,29 @@ export function TailorMadeForm() {
           </div>
         </div>
 
+        {aiEnabled && agencyId && chatAnchorId && (
+          <TailorMadeChatPanel
+            agencyId={agencyId}
+            anchorId={chatAnchorId}
+            itinerary={result}
+            onItineraryRevised={(next) => {
+              setResult(next);
+              toast({
+                title: 'Itinerary updated',
+                description: 'Your trip has been revised.',
+              });
+            }}
+          />
+        )}
+
         <div className="flex justify-center gap-4">
-          <Button onClick={() => setResult(null)} variant="outline">
+          <Button
+            onClick={() => {
+              setResult(null);
+              setChatAnchorId(null);
+            }}
+            variant="outline"
+          >
             Create Another Tour
           </Button>
           <Button onClick={() => window.print()}>Print Itinerary</Button>

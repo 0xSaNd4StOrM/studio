@@ -3,6 +3,7 @@ import { Agency } from '@/types';
 import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { getAgencyAiPublic } from '@/lib/supabase/agency-ai-config';
 
 type AgencyRow = {
   id: string;
@@ -12,6 +13,11 @@ type AgencyRow = {
   settings: Record<string, unknown> | null;
   status: 'active' | 'suspended';
   created_at: string;
+  copilot_github_token_encrypted: string | null;
+  copilot_user_login: string | null;
+  copilot_plan: string | null;
+  copilot_connected_at: string | null;
+  copilot_model_preferences: Record<string, unknown> | null;
 };
 
 const normalizeHost = (host: string) =>
@@ -101,15 +107,34 @@ export const getCurrentAgency = cache(async (): Promise<Agency | null> => {
       data = fallback.data as AgencyRow;
     }
 
+    const modelPreferences =
+      data.copilot_model_preferences && typeof data.copilot_model_preferences === 'object'
+        ? Object.fromEntries(
+            Object.entries(data.copilot_model_preferences).filter(
+              (entry): entry is [string, string] => typeof entry[1] === 'string'
+            )
+          )
+        : {};
+
+    // Only the four public flags surface here — persona/rules/knowledge
+    // stay private and only flow into the chat gateway's system prompt.
+    const aiConfigPublic = await getAgencyAiPublic(data.id);
+
     return {
       id: data.id,
       name: data.name,
       slug: data.slug,
-      domain: data.domain,
-      settings: data.settings || {},
+      domain: data.domain ?? undefined,
+      settings: (data.settings || {}) as Agency['settings'],
       status: data.status,
       createdAt: data.created_at,
-    } as Agency;
+      aiEnabled: Boolean(data.copilot_github_token_encrypted),
+      copilotUserLogin: data.copilot_user_login,
+      copilotPlan: data.copilot_plan,
+      copilotConnectedAt: data.copilot_connected_at,
+      copilotModelPreferences: modelPreferences,
+      aiConfigPublic,
+    } satisfies Agency;
   } catch (error) {
     console.error('Unexpected error fetching current agency:', error);
     return null;

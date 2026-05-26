@@ -102,6 +102,7 @@ import {
 } from 'framer-motion';
 import { useLanguage } from '@/hooks/use-language';
 import { useCurrency } from '@/hooks/use-currency';
+import { useSettings } from '@/components/providers/settings-provider';
 import { HotelSearchBox } from '@/components/hotel-search-box';
 import { HotelFeaturesSection } from '@/components/hotel-features-section';
 import { HotelStorySection } from '@/components/hotel-story-section';
@@ -276,6 +277,8 @@ export default function HomePageClient({
   }, [homeContent]);
 
   const router = useRouter();
+  const settingsCtx = useSettings();
+  const aiEnabled = Boolean(settingsCtx?.aiEnabled);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [destination, setDestination] = React.useState('');
   const [tourType, setTourType] = React.useState('');
@@ -525,18 +528,20 @@ export default function HomePageClient({
                       <Search className="h-4 w-4" />
                       {t('hero.findATour')}
                     </button>
-                    <button
-                      onClick={() => setHeroSearchTab('custom')}
-                      className={cn(
-                        'flex-1 flex items-center justify-center gap-2 py-3.5 px-5 text-sm font-bold transition-all',
-                        heroSearchTab === 'custom'
-                          ? 'bg-white text-primary shadow-sm dark:bg-card dark:text-primary'
-                          : 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-sm'
-                      )}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      {t('hero.customTrip')}
-                    </button>
+                    {aiEnabled && (
+                      <button
+                        onClick={() => setHeroSearchTab('custom')}
+                        className={cn(
+                          'flex-1 flex items-center justify-center gap-2 py-3.5 px-5 text-sm font-bold transition-all',
+                          heroSearchTab === 'custom'
+                            ? 'bg-white text-primary shadow-sm dark:bg-card dark:text-primary'
+                            : 'bg-white/15 text-white hover:bg-white/25 backdrop-blur-sm'
+                        )}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        {t('hero.customTrip')}
+                      </button>
+                    )}
                   </div>
 
                   {/* Tab Panels */}

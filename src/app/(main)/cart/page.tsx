@@ -7,6 +7,7 @@ import { useFormStatus } from 'react-dom';
 import { useCart } from '@/hooks/use-cart';
 import { useCurrency } from '@/hooks/use-currency';
 import { useLanguage } from '@/hooks/use-language';
+import { useSettings } from '@/components/providers/settings-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,6 +176,8 @@ export default function CartPage() {
   } = useCart();
   const { format: formatPrice } = useCurrency();
   const { t } = useLanguage();
+  const settingsCtx = useSettings();
+  const aiEnabled = Boolean(settingsCtx?.aiEnabled);
   const [state, formAction] = useActionState(getAiSuggestions, {
     message: '',
     suggestions: [],
@@ -858,7 +861,7 @@ export default function CartPage() {
               </Card>
             )}
 
-            {!aiSuggestionsDismissed && (
+            {aiEnabled && !aiSuggestionsDismissed && (
             <Card className="overflow-hidden rounded-2xl border bg-card">
               <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
                 <div>

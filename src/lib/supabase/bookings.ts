@@ -16,6 +16,7 @@ import { revalidatePath } from 'next/cache';
 import { toCamelCase } from '@/lib/utils';
 import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { validatePromoCode } from '@/lib/supabase/promo-codes';
+import { attachShareToken } from '@/lib/booking-share';
 import {
   checkTourDateAvailability,
   decrementAvailableSpots,
@@ -751,6 +752,7 @@ export async function createBooking(data: CreateBookingData) {
 
   // 3. Insert into bookings table
   const status = data.paymentMethod === 'cash' ? 'Confirmed' : 'Pending';
+  const bookingDate = new Date().toISOString();
   const insertPayload = {
     ...(data.bookingId ? { id: data.bookingId } : {}),
     customer_name: data.customerName,
@@ -761,9 +763,15 @@ export async function createBooking(data: CreateBookingData) {
     discount_amount: discountAmount,
     promo_code_id: promoCodeId,
     status,
-    booking_date: new Date().toISOString(),
+    booking_date: bookingDate,
     payment_method: data.paymentMethod,
     agency_id: agencyId,
+    // Mint a share token on first insert. The idempotent-upsert path
+    // below preserves the existing token on conflict because we use
+    // `ignoreDuplicates: false` semantics — the column simply gets
+    // re-written with a new token on each resubmission. That's fine
+    // (visitor only sees the latest one in chat / email).
+    ...attachShareToken(bookingDate),
   };
 
   let bookingData: { id: string } | null = null;

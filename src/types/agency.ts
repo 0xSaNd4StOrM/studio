@@ -32,6 +32,15 @@ export type AgencySettings = {
 
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'cancelled';
 
+export type CopilotModelPreferences = Record<string, string>;
+
+export type AgencyAiConfigPublic = {
+  agentName: string;
+  greeting: string;
+  showConciergeWidget: boolean;
+  greetingDelaySeconds: number;
+};
+
 export type Agency = {
   id: string;
   name: string;
@@ -44,6 +53,14 @@ export type Agency = {
   trial_ends_at?: string | null;
   next_billing_date?: string | null;
   monthly_price?: number;
+  // Copilot integration (client-safe — encrypted token is never exposed).
+  aiEnabled: boolean;
+  copilotUserLogin?: string | null;
+  copilotPlan?: string | null;
+  copilotConnectedAt?: string | null;
+  copilotModelPreferences?: CopilotModelPreferences;
+  // AI Concierge — only the public-safe flags surface to clients.
+  aiConfigPublic?: AgencyAiConfigPublic | null;
 };
 
 export type AgencyUser = {
