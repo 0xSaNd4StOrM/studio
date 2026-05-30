@@ -5,3 +5,16 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Runtime env. Secrets are pulled from Google Secret Manager at deploy time.
+# CRON_SECRET protects the scheduled endpoints (/api/cron/ical-sync,
+# /api/cron/cart-recovery). Create it once before deploying, e.g.:
+#   firebase apphosting:secrets:set CRON_SECRET
+# (paste the same value that is in your local .env). Until the secret exists in
+# Secret Manager this entry is a no-op-safe reference; remove it if you set
+# CRON_SECRET another way.
+env:
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability:
+      - RUNTIME

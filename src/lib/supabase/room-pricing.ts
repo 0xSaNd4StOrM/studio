@@ -221,8 +221,16 @@ export async function getRoomPriceQuote(input: RoomPriceQuoteInput): Promise<Roo
 
   for (const date of nightDates) {
     const inv = inventoryByDate.get(date);
-    const price = basePrice;
-    const usedInventoryOverride = false;
+    // Honor the admin-set nightly rate from room_inventory.price_per_night when
+    // it is present and valid (> 0); otherwise fall back to the room's base
+    // price. This is what makes seasonal / weekend / holiday pricing entered in
+    // Admin → Availability & Rates actually charge the guest correctly.
+    const inventoryPrice =
+      inv && Number.isFinite(Number(inv.pricePerNight)) && Number(inv.pricePerNight) > 0
+        ? Number(inv.pricePerNight)
+        : null;
+    const price = inventoryPrice ?? basePrice;
+    const usedInventoryOverride = inventoryPrice !== null && inventoryPrice !== basePrice;
     let available = true;
     let availableUnits = defaultUnits;
     let minNights: number | null = null;
@@ -460,11 +468,19 @@ export async function getRoomAvailabilityRange(
     const inv = inventoryByDate.get(dateStr);
     const status = classifyNight(inv, defaultUnits);
 
+    // Mirror the quote engine: surface the admin-set nightly rate when present
+    // and valid (> 0), else fall back to the room's base price, so the calendar
+    // shows the same price the guest will actually be charged.
+    const inventoryPrice =
+      inv && Number.isFinite(Number(inv.pricePerNight)) && Number(inv.pricePerNight) > 0
+        ? Number(inv.pricePerNight)
+        : null;
+
     nights.push({
       date: dateStr,
       status,
       availableUnits: inv ? inv.availableUnits : defaultUnits,
-      pricePerNight: basePrice,
+      pricePerNight: inventoryPrice ?? basePrice,
       currency: baseCurrency,
       minNights: inv?.minNights ?? null,
     });

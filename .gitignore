@@ -42,3 +42,10 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# local working files (not part of the app)
+/scripts
+.claude/_tree.txt
+.playwright-mcp/
+# client-supplied source photos (already uploaded to Supabase storage)
+/kaun pyramids/

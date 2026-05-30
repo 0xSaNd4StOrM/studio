@@ -43,6 +43,8 @@ import {
   ScrollText,
   Wand2,
   Inbox,
+  ConciergeBell,
+  Share2,
 } from 'lucide-react';
 import { AdminCommandBarTrigger } from '@/components/admin/command-bar';
 import { Logo } from '@/components/logo';
@@ -66,10 +68,12 @@ import { useAdminLanguage } from '@/hooks/use-admin-language';
 const getPageTitle = (pathname: string, t: (k: string) => string) => {
   if (pathname.startsWith('/admin/dashboard')) return t('admin.dashboard');
   if (pathname.startsWith('/admin/tours')) return t('admin.tours');
+  if (pathname.startsWith('/admin/hotels/ops')) return 'Front Desk';
   if (pathname.startsWith('/admin/hotels/bookings')) return t('admin.hotelBookings');
   if (pathname.startsWith('/admin/hotels/rooms')) return t('admin.roomTypes');
   if (pathname.startsWith('/admin/hotels/pricing-rules')) return t('admin.pricingRules');
   if (pathname.startsWith('/admin/hotels/availability')) return t('admin.availabilityRates');
+  if (pathname.startsWith('/admin/hotels/channels')) return 'Channel Sync';
   if (pathname.startsWith('/admin/hotels')) return t('admin.hotelsDashboard');
   if (pathname.startsWith('/admin/bookings')) return t('admin.bookings');
   if (pathname.startsWith('/admin/customers')) return t('admin.customers');
@@ -140,6 +144,7 @@ export function AdminSidebar({
       keepOpen: true,
       items: [
         { href: '/admin/bookings', label: t('admin.bookings'), icon: Calendar },
+        { href: '/admin/hotels/ops', label: 'Front Desk', icon: ConciergeBell },
         { href: '/admin/hotels/bookings', label: t('admin.hotelBookings'), icon: Calendar },
         { href: '/admin/customers', label: t('admin.customers'), icon: Users },
         { href: '/admin/reviews', label: t('admin.reviews'), icon: Star },
@@ -160,6 +165,7 @@ export function AdminSidebar({
       items: [
         { href: '/admin/hotels/pricing-rules', label: t('admin.pricingRules'), icon: Percent },
         { href: '/admin/hotels/availability', label: t('admin.availability'), icon: Calendar },
+        { href: '/admin/hotels/channels', label: 'Channel Sync', icon: Share2 },
         { href: '/admin/promotions', label: t('admin.promotions'), icon: Percent },
       ],
     },
@@ -199,9 +205,11 @@ export function AdminSidebar({
     if (
       [
         '/admin/hotels',
+        '/admin/hotels/ops',
         '/admin/hotels/rooms',
         '/admin/hotels/pricing-rules',
         '/admin/hotels/availability',
+        '/admin/hotels/channels',
         '/admin/hotels/bookings',
       ].includes(href) &&
       modules.hotels === false

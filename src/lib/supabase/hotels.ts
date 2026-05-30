@@ -6,6 +6,8 @@ import { getCurrentAgencyId } from '@/lib/supabase/agencies';
 import { toCamelCase } from '@/lib/utils';
 import type {
   AdminHotelBooking,
+  FrontDeskBoard,
+  FrontDeskRoomOccupancy,
   Hotel,
   HotelBooking,
   HotelBookingStatus,
@@ -1142,4 +1144,232 @@ export async function upsertRoomInventoryRange(input: {
   }
 
   redirect(`/admin/hotels/availability?${query.toString()}`);
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Front-Desk Ops board (Phase 3)
+// ───────────────────────────────────────────────────────────────────────────
+
+function todayIsoInTimezone(timezone: string | null | undefined): string {
+  // Compute the hotel-local calendar day. Falls back to UTC when the timezone
+  // is unset or invalid. `en-CA` yields a YYYY-MM-DD formatted date.
+  try {
+    if (timezone) {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    }
+  } catch {
+    // invalid tz → fall through to UTC
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysIso(dateIso: string, days: number): string {
+  const d = new Date(`${dateIso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Build the front-desk operations board for the current agency's hotel.
+ *
+ * Pure read derived from active (non-cancelled) `hotel_bookings`; no extra
+ * tables. Stays are interpreted as `[check_in, check_out)` — checkout day is
+ * not an occupied night. "Today" is the hotel-local calendar day when the
+ * hotel has a timezone configured, else UTC.
+ */
+export async function getFrontDeskBoard(): Promise<FrontDeskBoard> {
+  const supabase = await createClient();
+  const agencyId = await getCurrentAgencyId();
+
+  // Resolve the hotel (single-hotel model) for timezone + unit capacity.
+  const { data: hotelRow } = await supabase
+    .from('hotels')
+    .select('id, timezone')
+    .eq('agency_id', agencyId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const today = todayIsoInTimezone(
+    (hotelRow as { timezone?: string | null } | null)?.timezone ?? null
+  );
+  const weekAhead = addDaysIso(today, 7);
+
+  const emptyBoard: FrontDeskBoard = {
+    today,
+    arrivals: [],
+    departures: [],
+    inHouse: [],
+    upcoming: [],
+    occupancy: { totalUnits: 0, occupiedUnits: 0, occupancyPct: 0, perRoom: [] },
+    turnover: [],
+  };
+
+  if (!hotelRow) return emptyBoard;
+  const hotelId = (hotelRow as { id: string }).id;
+
+  // All active bookings + the room types (for capacity + names).
+  const [{ data: bookingRows, error: bookingErr }, roomTypes] = await Promise.all([
+    supabase
+      .from('hotel_bookings')
+      .select(HOTEL_BOOKING_SELECT)
+      .eq('agency_id', agencyId)
+      .neq('status', 'cancelled')
+      .order('check_in', { ascending: true }),
+    getRoomTypesByHotelId(hotelId, { skipTranslation: true }),
+  ]);
+
+  if (bookingErr) throw bookingErr;
+
+  const bookings = await mapAdminHotelBookingRows(
+    supabase as SupabaseClient,
+    agencyId,
+    (bookingRows || []) as HotelBookingRow[]
+  );
+
+  const arrivals = bookings.filter((b) => b.checkIn === today);
+  const departures = bookings.filter((b) => b.checkOut === today);
+  const inHouse = bookings.filter((b) => b.checkIn <= today && b.checkOut > today);
+  const upcoming = bookings
+    .filter((b) => b.checkIn > today && b.checkIn <= weekAhead)
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+
+  // Occupancy per room type (tonight): sum booked units for active stays
+  // spanning today, capped at the room type's configured unit capacity.
+  const occupiedByRoom = new Map<string, number>();
+  for (const b of inHouse) {
+    occupiedByRoom.set(b.roomTypeId, (occupiedByRoom.get(b.roomTypeId) ?? 0) + Number(b.units || 0));
+  }
+
+  const perRoom: FrontDeskRoomOccupancy[] = roomTypes
+    .filter((rt) => rt.isActive)
+    .map((rt) => {
+      const totalUnits = Math.max(1, Number(rt.defaultUnits ?? 1));
+      const occupiedUnits = Math.min(totalUnits, occupiedByRoom.get(rt.id) ?? 0);
+      return {
+        roomTypeId: rt.id,
+        roomTypeName: rt.name,
+        totalUnits,
+        occupiedUnits,
+      };
+    });
+
+  const totalUnits = perRoom.reduce((sum, r) => sum + r.totalUnits, 0);
+  const occupiedUnits = perRoom.reduce((sum, r) => sum + r.occupiedUnits, 0);
+  const occupancyPct = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+
+  // Turnover list: rooms departing today need cleaning. Flag a tight
+  // turnaround when the same room type also has an arrival today.
+  const arrivingRoomTypeIds = new Set(arrivals.map((a) => a.roomTypeId));
+  const turnover = departures.map((d) => ({
+    bookingId: d.id,
+    roomTypeId: d.roomTypeId,
+    roomTypeName: d.roomTypeName ?? 'Room',
+    guestName: d.guestName ?? null,
+    units: Number(d.units || 0),
+    sameDayArrival: arrivingRoomTypeIds.has(d.roomTypeId),
+  }));
+
+  return {
+    today,
+    arrivals,
+    departures,
+    inHouse,
+    upcoming,
+    occupancy: { totalUnits, occupiedUnits, occupancyPct, perRoom },
+    turnover,
+  };
+}
+
+/**
+ * One-click stop-sell helper for the front desk: blocks a room type across
+ * `[from, to]` (inclusive) by upserting `stop_sell = true` while preserving
+ * the existing nightly price/units. Reuses the same `room_inventory` writer
+ * semantics as the availability editor. Agency-scoped via room ownership.
+ */
+export async function setRoomTypeStopSell(input: {
+  roomTypeId: string;
+  from: string;
+  to: string;
+  stopSell: boolean;
+}): Promise<void> {
+  const supabase = await createAdminClient();
+  const agencyId = await getCurrentAgencyId();
+
+  const roomTypeId = input.roomTypeId.trim();
+  if (!roomTypeId) throw new Error('Room type is required.');
+
+  // Verify the room type belongs to a hotel in the current agency.
+  const { data: rt, error: rtErr } = await supabase
+    .from('room_types')
+    .select('id, hotel_id, base_price_per_night, default_units')
+    .eq('id', roomTypeId)
+    .maybeSingle();
+  if (rtErr) throw rtErr;
+  if (!rt) throw new Error('Room type not found.');
+
+  const { data: hotel, error: hErr } = await supabase
+    .from('hotels')
+    .select('id')
+    .eq('id', (rt as { hotel_id: string }).hotel_id)
+    .eq('agency_id', agencyId)
+    .maybeSingle();
+  if (hErr) throw hErr;
+  if (!hotel) throw new Error('Room type is not part of the current agency.');
+
+  const fromDate = new Date(`${input.from}T00:00:00Z`);
+  const toDate = new Date(`${input.to}T00:00:00Z`);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    throw new Error('Invalid date range.');
+  }
+  if (toDate < fromDate) throw new Error('End date must be after start date.');
+
+  const basePrice = Number((rt as { base_price_per_night: number | null }).base_price_per_night ?? 0);
+  const defaultUnits = normalizeRoomUnitCapacity(
+    (rt as { default_units: number | null }).default_units
+  );
+
+  // Read existing rows in range so we preserve per-night price/units.
+  const toExclusive = addDaysIso(input.to, 1);
+  const { data: existingInv } = await supabase
+    .from('room_inventory')
+    .select('date, available_units, price_per_night')
+    .eq('room_type_id', roomTypeId)
+    .gte('date', input.from)
+    .lt('date', toExclusive);
+
+  const existingByDate = new Map(
+    (existingInv ?? []).map((r) => [
+      (r as { date: string }).date,
+      r as { available_units: number | null; price_per_night: number | null },
+    ])
+  );
+
+  const rows: Array<Record<string, unknown>> = [];
+  for (let d = new Date(fromDate); d <= toDate; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dateStr = d.toISOString().slice(0, 10);
+    const prior = existingByDate.get(dateStr);
+    rows.push({
+      room_type_id: roomTypeId,
+      date: dateStr,
+      available_units: prior?.available_units ?? defaultUnits,
+      price_per_night: prior?.price_per_night ?? basePrice,
+      stop_sell: input.stopSell,
+    });
+  }
+
+  const { error } = await supabase
+    .from('room_inventory')
+    .upsert(rows, { onConflict: 'room_type_id,date' });
+  if (error) throw error;
+
+  revalidatePath('/admin/hotels/ops');
+  revalidatePath('/admin/hotels/availability');
+  revalidatePath('/rooms/[slug]', 'page');
+  revalidatePath('/hotels/[slug]/rooms/[roomSlug]', 'page');
 }

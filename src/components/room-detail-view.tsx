@@ -31,7 +31,7 @@ import type {
   RoomPriceQuote,
   RoomType,
 } from '@/types';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -51,7 +51,7 @@ import { cn } from '@/lib/utils';
 import { getHotelDetailHref } from '@/lib/routing/hotel-links';
 import { getRoomAvailabilityRange, getRoomPriceQuoteAction } from '@/lib/supabase/room-pricing';
 import { useCart } from '@/hooks/use-cart';
-import { useCurrency } from '@/hooks/use-currency';
+import { useCurrency, currencies } from '@/hooks/use-currency';
 import { TierLadder } from '@/components/tier-ladder';
 import { HoldTimer } from '@/components/hold-timer';
 import { CrossSellRail, type CrossSellContext } from '@/components/cross-sell-rail';
@@ -734,17 +734,27 @@ export function RoomDetailView({ room, hotel, addons, singleHotelMode }: RoomDet
                           onMonthChange={setVisibleMonth}
                           defaultMonth={range?.from ?? today}
                           disabled={disabledMatchers}
+                          // Wider/taller cells so a per-night price chip fits
+                          // legibly under each day number (this instance only;
+                          // the shared Calendar default stays compact).
+                          classNames={{
+                            head_cell:
+                              'text-muted-foreground rounded-md w-12 font-normal text-[0.8rem]',
+                            day: cn(
+                              buttonVariants({ variant: 'ghost' }),
+                              'h-12 w-12 p-0 font-normal aria-selected:opacity-100'
+                            ),
+                          }}
                           modifiers={{
                             soldOut: calendarModifiers.soldOut,
                             stopSell: calendarModifiers.stopSell,
                             lowAvailability: calendarModifiers.low,
                           }}
                           modifiersClassNames={{
-                            soldOut: 'line-through text-destructive/80 aria-disabled:opacity-100',
+                            soldOut: 'text-destructive/80 aria-disabled:opacity-100',
                             stopSell:
                               'text-muted-foreground bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,hsl(var(--muted))_3px,hsl(var(--muted))_5px)]',
-                            lowAvailability:
-                              'relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-amber-500',
+                            lowAvailability: 'ring-1 ring-inset ring-amber-400/50 rounded-md',
                           }}
                           components={{ DayContent: renderDayContent }}
                           initialFocus
@@ -1069,28 +1079,56 @@ function SmartDayContent({
   night: RoomAvailabilityNight | undefined;
   basePrice: number | null;
 }) {
+  const { format: formatMoney, convert, currency } = useCurrency();
+  // Compact chip label (e.g. "$190", "E£9K") so the price fits inside a 48px
+  // calendar cell. The exact, full-precision price stays in the tooltip.
+  const compactPrice = useCallback(
+    (usd: number) => {
+      const symbol = currencies.find((c) => c.code === currency)?.symbol ?? '';
+      const value = new Intl.NumberFormat('en-US', {
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(convert(usd));
+      return `${symbol}${value}`;
+    },
+    [convert, currency]
+  );
   const dayLabel = format(date, 'd');
   const isOutside = date.getMonth() !== displayMonth.getMonth();
+  const isUnbookable = night?.status === 'sold_out' || night?.status === 'stop_sell';
 
   let ariaLabel: string | undefined;
   if (night?.status === 'sold_out') ariaLabel = `${format(date, 'PPP')} — Sold out`;
   else if (night?.status === 'stop_sell') ariaLabel = `${format(date, 'PPP')} — Not available`;
   else if (night?.status === 'low') ariaLabel = `${format(date, 'PPP')} — Low availability`;
 
-  // Show price chip in tooltip when an inventory override differs from base
-  // by > 1%. This avoids cramming chips into 36px cells while still surfacing
-  // per-night pricing on hover/focus.
-  const override = night?.pricePerNight ?? null;
-  const showPriceTooltip =
-    override != null &&
+  // Per-night price shown directly in the cell (not just on hover). Only when
+  // a valid rate is known and the night is bookable.
+  const price = night?.pricePerNight ?? null;
+  const showPrice = price != null && price > 0 && !isUnbookable;
+  const isAboveBase =
+    price != null &&
     basePrice != null &&
     basePrice > 0 &&
-    Math.abs(override - basePrice) / basePrice > PRICE_CHIP_DELTA_PCT;
+    (price - basePrice) / basePrice > PRICE_CHIP_DELTA_PCT;
+  const isBelowBase =
+    price != null &&
+    basePrice != null &&
+    basePrice > 0 &&
+    (basePrice - price) / basePrice > PRICE_CHIP_DELTA_PCT;
 
+  if (showPrice && ariaLabel === undefined) {
+    ariaLabel = `${format(date, 'PPP')} — ${formatMoney(price)} per night`;
+  }
+
+  // Tooltip carries the richer detail that doesn't fit in the cell.
   const tooltipParts: string[] = [];
-  if (showPriceTooltip && override != null) {
-    const cur = night?.currency ?? '';
-    tooltipParts.push(`${cur ? `${cur} ` : ''}${override.toLocaleString()} / night`);
+  if (showPrice && price != null) {
+    tooltipParts.push(
+      `${formatMoney(price)} / night${
+        isAboveBase ? ' (special rate)' : isBelowBase ? ' (lower rate)' : ''
+      }`
+    );
   }
   if (night?.minNights && night.minNights > 1) {
     tooltipParts.push(`Min ${night.minNights} nights`);
@@ -1104,11 +1142,27 @@ function SmartDayContent({
   const inner = (
     <span
       aria-label={ariaLabel}
-      className={cn('inline-flex h-full w-full items-center justify-center', {
+      className={cn('flex h-full w-full flex-col items-center justify-center leading-none', {
         'opacity-60': isOutside,
       })}
     >
-      {dayLabel}
+      <span className={cn('text-sm', isUnbookable && 'line-through')}>{dayLabel}</span>
+      {showPrice && price != null ? (
+        <span
+          className={cn(
+            'mt-0.5 text-[9px] font-medium tabular-nums',
+            isAboveBase
+              ? 'text-amber-600 dark:text-amber-400'
+              : isBelowBase
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-muted-foreground'
+          )}
+        >
+          {compactPrice(price)}
+        </span>
+      ) : night?.status === 'low' ? (
+        <span className="mt-0.5 h-1 w-1 rounded-full bg-amber-500" aria-hidden />
+      ) : null}
     </span>
   );
 

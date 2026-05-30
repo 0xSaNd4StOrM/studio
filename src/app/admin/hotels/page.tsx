@@ -50,6 +50,9 @@ export default async function AdminHotelsPage() {
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
+            <Link href="/admin/hotels/ops">Front Desk</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href="/admin/hotels/rooms">Room Types</Link>
           </Button>
           <Button asChild variant="outline">
@@ -57,6 +60,9 @@ export default async function AdminHotelsPage() {
           </Button>
           <Button asChild variant="outline">
             <Link href="/admin/hotels/availability">Availability</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/admin/hotels/channels">Channel Sync</Link>
           </Button>
           <Button asChild>
             <Link href="/admin/hotels/bookings">Bookings</Link>

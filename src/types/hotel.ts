@@ -288,6 +288,47 @@ export type AdminHotelBooking = HotelBooking & {
   roomTypeSlug: string | null;
 };
 
+/** A single room type's live occupancy snapshot for "today" on the front desk. */
+export type FrontDeskRoomOccupancy = {
+  roomTypeId: string;
+  roomTypeName: string;
+  totalUnits: number;
+  /** Units occupied tonight (active bookings spanning today). */
+  occupiedUnits: number;
+};
+
+/**
+ * Aggregated front-desk operations board. All figures are derived from active
+ * (non-cancelled) `hotel_bookings` for the current agency — no extra tables.
+ */
+export type FrontDeskBoard = {
+  /** ISO `YYYY-MM-DD` the board was computed for (hotel-local day). */
+  today: string;
+  arrivals: AdminHotelBooking[];
+  departures: AdminHotelBooking[];
+  /** Guests staying through tonight (checked in on/before today, out after today). */
+  inHouse: AdminHotelBooking[];
+  /** Active bookings arriving within the next 7 days (excluding today). */
+  upcoming: AdminHotelBooking[];
+  occupancy: {
+    totalUnits: number;
+    occupiedUnits: number;
+    /** 0–100, rounded. */
+    occupancyPct: number;
+    perRoom: FrontDeskRoomOccupancy[];
+  };
+  /** Room types departing today (need turnover/cleaning), with same-day-arrival flag. */
+  turnover: Array<{
+    bookingId: string;
+    roomTypeId: string;
+    roomTypeName: string;
+    guestName: string | null;
+    units: number;
+    /** True when another booking for the same room type arrives today (tight turnaround). */
+    sameDayArrival: boolean;
+  }>;
+};
+
 export type HotelDashboardOperationsSummary = {
   totalBookings: number;
   activeBookings: number;
