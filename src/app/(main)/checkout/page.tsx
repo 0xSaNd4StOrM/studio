@@ -22,6 +22,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { computeDepositBreakdown } from '@/lib/deposits';
 import { MagneticWrap } from '@/components/motion';
 import { CountrySelect } from '@/components/country-select';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -1397,12 +1398,16 @@ export default function CheckoutPage() {
                       name="paymentChoice"
                       render={({ field }) => {
                         const total = getFinalTotal();
-                        const pct = Math.min(
-                          100,
-                          Math.max(1, Math.floor(paymentConfig?.depositPercent ?? 0))
-                        );
-                        const deposit = Math.round((total * pct) / 100);
-                        const balance = total - deposit;
+                        // Use the SAME breakdown the server charges (computeDepositBreakdown),
+                        // so the previewed deposit/balance match the real Kashier amount to the cent.
+                        const previewBreakdown = computeDepositBreakdown({
+                          totalUsd: total,
+                          choice: 'deposit',
+                          percent: paymentConfig?.depositPercent ?? 0,
+                        });
+                        const pct = previewBreakdown.depositPercent ?? 0;
+                        const deposit = previewBreakdown.depositUsd;
+                        const balance = previewBreakdown.balanceUsd;
                         return (
                           <FormItem className="space-y-3">
                             <FormLabel>How much would you like to pay now?</FormLabel>
