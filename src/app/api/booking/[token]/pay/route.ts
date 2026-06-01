@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { getAgencyAiConfig } from '@/lib/supabase/agency-ai-config';
+import { fetchUsdToEgp } from '@/lib/fx';
 import { buildKashierHppUrl } from '@/lib/kashier';
-import { fetchUsdToEgp, usdToEgp } from '@/lib/fx';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -71,7 +71,7 @@ export async function GET(
   }
 
   const rate = await fetchUsdToEgp();
-  const amountEgp = usdToEgp(row.total_price, rate);
+  const amountEgp = Math.round(row.total_price * rate * 100) / 100;
 
   try {
     const paymentUrl = await buildKashierHppUrl({
