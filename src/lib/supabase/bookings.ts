@@ -256,9 +256,29 @@ export async function applyVerifiedPaymentStatusChange(
     return { status: previous.status, changed: false, reason: 'not_pending' };
   }
 
+  // On a verified positive payment, also reconcile the money axis from the
+  // booking's own stored absolutes (not increments), so webhook retries are
+  // idempotent. A deposit booking (deposit_percent set) becomes deposit_paid
+  // with the deposit recorded and the balance left to collect on arrival; a
+  // full payment becomes paid_in_full. Cancelled leaves payment fields alone.
+  const paymentUpdates: Record<string, unknown> = { status };
+  if (status === 'Confirmed') {
+    const total = Number(previous.total_price ?? 0);
+    const storedBalance = Number(previous.balance_due ?? 0);
+    if (previous.deposit_percent != null) {
+      paymentUpdates.payment_status = 'deposit_paid';
+      paymentUpdates.amount_paid = round2(total - storedBalance);
+      paymentUpdates.balance_due = storedBalance;
+    } else {
+      paymentUpdates.payment_status = 'paid_in_full';
+      paymentUpdates.amount_paid = total;
+      paymentUpdates.balance_due = 0;
+    }
+  }
+
   const { data: updated, error } = await supabase
     .from('bookings')
-    .update({ status })
+    .update(paymentUpdates)
     .eq('id', bookingId)
     .eq('status', 'Pending')
     .eq('payment_method', 'online')
