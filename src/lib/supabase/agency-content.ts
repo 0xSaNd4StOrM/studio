@@ -250,6 +250,13 @@ export type AgencySettingsData = {
    */
   cartHoldTtlMinutes?: number;
   /**
+   * Deposits (partial payment). When enabled, online checkout offers the guest
+   * a choice to pay a percentage now and the balance on arrival.
+   */
+  depositEnabled?: boolean;
+  depositPercent?: number; // 1..100, agency-wide
+  depositPolicyText?: string; // e.g. "Deposit is non-refundable."
+  /**
    * Default search type rendered on the home page hero. When set, overrides the
    * inferred default ("tours" or "hotels") computed from modules. Allowed
    * values: 'tours' | 'hotels' | 'auto' (auto = infer from modules).
