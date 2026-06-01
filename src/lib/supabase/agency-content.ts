@@ -288,6 +288,9 @@ export type CheckoutPaymentMethodAvailability = {
   online: boolean;
   defaultMethod: 'cash' | 'online';
   onlineConfigured: boolean;
+  depositEnabled: boolean;
+  depositPercent: number;
+  depositPolicyText: string;
 };
 
 export type TourTaxonomyType = 'category' | 'destination';
@@ -623,6 +626,9 @@ export async function getCheckoutPaymentMethodAvailability(): Promise<CheckoutPa
     online,
     defaultMethod,
     onlineConfigured,
+    depositEnabled: settings.data?.depositEnabled === true,
+    depositPercent: Number(settings.data?.depositPercent ?? 0),
+    depositPolicyText: settings.data?.depositPolicyText ?? '',
   };
 }
 

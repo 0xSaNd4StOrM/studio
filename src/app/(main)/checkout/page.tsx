@@ -149,6 +149,7 @@ const formSchema = z.object({
     .regex(/^\+?[0-9\s\-()]*$/, 'Invalid phone number format.'),
   nationality: z.string().min(2, 'Nationality is required.'),
   paymentMethod: z.enum(['cash', 'online']),
+  paymentChoice: z.enum(['deposit', 'full']).default('deposit'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -174,7 +175,7 @@ export default function CheckoutPage() {
     updateRoomItem,
     refreshRoomHold,
   } = useCart();
-  const { format: formatPrice, convertTo } = useCurrency();
+  const { format: formatPrice } = useCurrency();
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -183,6 +184,9 @@ export default function CheckoutPage() {
     online: boolean;
     defaultMethod: PaymentMethod;
     onlineConfigured: boolean;
+    depositEnabled: boolean;
+    depositPercent: number;
+    depositPolicyText: string;
   } | null>(null);
   const [redirectStatus, setRedirectStatus] = useState<RedirectStatus>('idle');
   const [redirectMode, setRedirectMode] = useState<'online' | 'cash'>('online');
@@ -214,6 +218,7 @@ export default function CheckoutPage() {
       phoneNumber: '',
       nationality: '',
       paymentMethod: 'online',
+      paymentChoice: 'deposit',
     },
   });
 
@@ -293,6 +298,9 @@ export default function CheckoutPage() {
           online: normalizedOnline,
           defaultMethod: nextDefault,
           onlineConfigured,
+          depositEnabled: availability?.depositEnabled ?? false,
+          depositPercent: availability?.depositPercent ?? 0,
+          depositPolicyText: availability?.depositPolicyText ?? '',
         });
 
         form.setValue('paymentMethod', nextDefault, { shouldValidate: true });
@@ -303,6 +311,9 @@ export default function CheckoutPage() {
           online: false,
           defaultMethod: 'cash',
           onlineConfigured: false,
+          depositEnabled: false,
+          depositPercent: 0,
+          depositPolicyText: '',
         });
         form.setValue('paymentMethod', 'cash', { shouldValidate: true });
       }
@@ -602,7 +613,7 @@ export default function CheckoutPage() {
       };
 
       if (values.paymentMethod === 'cash') {
-        const bookingId = await createBooking(bookingPayload);
+        const { bookingId } = await createBooking(bookingPayload);
 
         toast({
           title: '✅ Booking confirmed',
@@ -619,21 +630,23 @@ export default function CheckoutPage() {
 
       const fingerprint = computeCartFingerprint(cartItems, promoCode?.code ?? null);
       const provisionalBookingId = getOrCreateProvisionalBookingId(fingerprint);
-      const kashierAmountInEgp = convertTo(getFinalTotal(), 'EGP');
+
+      // Create the booking FIRST so the server computes the authoritative charge
+      // (deposit or full) in EGP, then build the Kashier URL from that figure.
+      const { chargeEgp } = await createBooking({
+        ...bookingPayload,
+        bookingId: provisionalBookingId,
+        paymentChoice: values.paymentChoice,
+      });
 
       const paymentUrl = await buildKashierHppUrl({
         merchantOrderId: provisionalBookingId,
-        amount: kashierAmountInEgp,
+        amount: chargeEgp,
         customer: {
           name: values.name,
           email: values.email,
           mobile: values.phoneNumber,
         },
-      });
-
-      await createBooking({
-        ...bookingPayload,
-        bookingId: provisionalBookingId,
       });
 
       toast({
@@ -1378,6 +1391,61 @@ export default function CheckoutPage() {
                         </span>
                       </div>
                     )}
+                  {form.watch('paymentMethod') === 'online' && paymentConfig?.depositEnabled ? (
+                    <FormField
+                      control={form.control}
+                      name="paymentChoice"
+                      render={({ field }) => {
+                        const total = getFinalTotal();
+                        const pct = Math.min(
+                          100,
+                          Math.max(1, Math.floor(paymentConfig?.depositPercent ?? 0))
+                        );
+                        const deposit = Math.round((total * pct) / 100);
+                        const balance = total - deposit;
+                        return (
+                          <FormItem className="space-y-3">
+                            <FormLabel>How much would you like to pay now?</FormLabel>
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                value={field.value}
+                                className="grid gap-4"
+                              >
+                                <label
+                                  htmlFor="pay-deposit"
+                                  className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50"
+                                >
+                                  <RadioGroupItem value="deposit" id="pay-deposit" className="mt-1" />
+                                  <div>
+                                    <div className="font-medium">
+                                      Pay {pct}% deposit now — {formatPrice(deposit)}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {formatPrice(balance)} due on arrival
+                                      {paymentConfig?.depositPolicyText
+                                        ? ` · ${paymentConfig.depositPolicyText}`
+                                        : ''}
+                                    </div>
+                                  </div>
+                                </label>
+                                <label
+                                  htmlFor="pay-full"
+                                  className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-muted/50"
+                                >
+                                  <RadioGroupItem value="full" id="pay-full" className="mt-1" />
+                                  <div className="font-medium">
+                                    Pay full amount — {formatPrice(total)}
+                                  </div>
+                                </label>
+                              </RadioGroup>
+                            </FormControl>
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  ) : null}
+
                   <FormField
                     control={form.control}
                     name="paymentMethod"
