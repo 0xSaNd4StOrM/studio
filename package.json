@@ -18,7 +18,9 @@
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "format:fix": "prettier --write \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
-    "ci": "npm run format:check && npm run lint:check && npm run typecheck"
+    "ci": "npm run format:check && npm run lint:check && npm run typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
@@ -84,6 +86,7 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }
