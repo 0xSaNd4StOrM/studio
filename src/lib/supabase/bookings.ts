@@ -1089,6 +1089,12 @@ export async function createBooking(data: CreateBookingData) {
         subtotal,
         discountAmount,
         totalPrice: finalTotal,
+        // For a deposit booking, show the expected split. At send time the
+        // payment is still Pending, so these are amounts the guest will owe,
+        // not reconciled paid values (the webhook sets those on Confirmed).
+        paymentStatus: breakdown.depositPercent != null ? 'deposit_paid' : undefined,
+        amountPaid: breakdown.depositPercent != null ? breakdown.depositUsd : undefined,
+        balanceDue: breakdown.depositPercent != null ? breakdown.balanceUsd : undefined,
       }),
     });
 

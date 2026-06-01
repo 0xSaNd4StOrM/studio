@@ -37,6 +37,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       totalPrice: booking.totalPrice,
       status: booking.status,
       paymentMethod: booking.paymentMethod,
+      paymentStatus: booking.paymentStatus,
+      amountPaid: booking.amountPaid,
+      balanceDue: booking.balanceDue,
       items: (booking.bookingItems || []).map((item) => ({
         name: item.tours?.name ?? item.upsellItems?.name ?? 'Item',
         packageName: item.packageName,
