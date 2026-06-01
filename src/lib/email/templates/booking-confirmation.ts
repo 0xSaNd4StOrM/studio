@@ -30,6 +30,9 @@ export type BookingConfirmationData = {
   discountAmount?: number;
   totalPrice: number;
   currency?: string;
+  paymentStatus?: 'unpaid' | 'deposit_paid' | 'paid_in_full';
+  amountPaid?: number;
+  balanceDue?: number;
 };
 
 export function renderBookingConfirmationEmail(data: BookingConfirmationData): string {
@@ -47,6 +50,9 @@ export function renderBookingConfirmationEmail(data: BookingConfirmationData): s
     discountAmount = 0,
     totalPrice,
     currency = 'USD',
+    paymentStatus,
+    amountPaid,
+    balanceDue,
   } = data;
 
   const fmt = (amount: number) =>
@@ -93,6 +99,26 @@ export function renderBookingConfirmationEmail(data: BookingConfirmationData): s
           <td style="padding: 8px 0; color: #16a34a;">Discount Applied</td>
           <td style="padding: 8px 0; text-align: right; color: #16a34a; font-weight: 600;">−${fmt(discountAmount)}</td>
         </tr>`
+      : '';
+
+  const paidSummaryHtml =
+    paymentStatus === 'deposit_paid'
+      ? `
+        <table style="width: 100%; border-collapse: collapse; margin: 0 0 16px;">
+          <tr>
+            <td style="padding: 6px 0; color: #555;">Paid now (deposit)</td>
+            <td style="padding: 6px 0; text-align: right; color: #555;">
+              ${fmt(amountPaid ?? 0)}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; font-weight: 700;">Balance due on arrival</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700;">
+              ${fmt(balanceDue ?? 0)}
+            </td>
+          </tr>
+        </table>
+      `
       : '';
 
   const paymentNote =
@@ -162,6 +188,8 @@ export function renderBookingConfirmationEmail(data: BookingConfirmationData): s
                 <td style="padding:12px 0;border-top:2px solid #111;text-align:right;font-size:18px;font-weight:700;color:#2563eb;">${fmt(totalPrice)}</td>
               </tr>
             </table>
+
+            ${paidSummaryHtml}
 
             ${paymentNote}
 

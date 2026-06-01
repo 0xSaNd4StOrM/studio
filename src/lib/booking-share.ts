@@ -61,6 +61,9 @@ export type SharedBooking = {
   totalPrice: number;
   discountAmount: number;
   paymentMethod: 'cash' | 'online' | null;
+  paymentStatus: 'unpaid' | 'deposit_paid' | 'paid_in_full' | null;
+  amountPaid: number | null;
+  balanceDue: number | null;
   bookingDate: string;
   shareExpiresAt: string | null;
   items: SharedBookingItem[];
@@ -79,6 +82,9 @@ type RawBookingRow = {
   total_price: number;
   discount_amount: number | null;
   payment_method: 'cash' | 'online' | null;
+  payment_status: 'unpaid' | 'deposit_paid' | 'paid_in_full' | null;
+  amount_paid: number | null;
+  balance_due: number | null;
   booking_date: string;
   share_expires_at: string | null;
   booking_items?: Array<{
@@ -112,7 +118,7 @@ export async function getSharedBookingByToken(
   const { data, error } = await supabase
     .from('bookings')
     .select(
-      'id, agency_id, status, total_price, discount_amount, payment_method, booking_date, share_expires_at, booking_items(item_date, adults, children, package_name, price, tours(name, slug), upsell_items(name, price))'
+      'id, agency_id, status, total_price, discount_amount, payment_method, payment_status, amount_paid, balance_due, booking_date, share_expires_at, booking_items(item_date, adults, children, package_name, price, tours(name, slug), upsell_items(name, price))'
     )
     .eq('share_token', token)
     .maybeSingle();
@@ -164,6 +170,9 @@ export async function getSharedBookingByToken(
     totalPrice: row.total_price,
     discountAmount: row.discount_amount ?? 0,
     paymentMethod: row.payment_method,
+    paymentStatus: row.payment_status ?? null,
+    amountPaid: row.amount_paid ?? null,
+    balanceDue: row.balance_due ?? null,
     bookingDate: row.booking_date,
     shareExpiresAt: row.share_expires_at,
     items: (row.booking_items ?? []).map((item) => ({

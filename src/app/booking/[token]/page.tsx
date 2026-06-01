@@ -177,6 +177,32 @@ export default async function BookingSharePage({ params }: BookingSharePageProps
                 </span>
                 <span>{formattedTotal}</span>
               </div>
+              {booking.paymentStatus === 'deposit_paid' ? (
+                <>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Paid (deposit)</span>
+                    <span>
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        maximumFractionDigits: 2,
+                      }).format(booking.amountPaid ?? 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Balance due on arrival</span>
+                    <span>
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        maximumFractionDigits: 2,
+                      }).format(booking.balanceDue ?? 0)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Paid in full</p>
+              )}
               {booking.paymentMethod && (
                 <p className="text-xs text-muted-foreground">
                   Payment method:{' '}

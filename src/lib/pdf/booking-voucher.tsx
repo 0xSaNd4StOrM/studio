@@ -29,6 +29,9 @@ export interface VoucherData {
   totalPrice: number;
   status: string;
   paymentMethod?: string;
+  paymentStatus?: 'unpaid' | 'deposit_paid' | 'paid_in_full';
+  amountPaid?: number;
+  balanceDue?: number;
   items: VoucherItem[];
 }
 
@@ -174,6 +177,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 11,
     color: colors.primary,
+  },
+
+  // Deposit payment summary
+  depositRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  depositLabel: {
+    fontSize: 9,
+    color: colors.muted,
+    marginRight: 16,
+  },
+  depositValue: {
+    fontSize: 9,
+    color: colors.muted,
+  },
+  balanceLabel: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
+    marginRight: 16,
+  },
+  balanceValue: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.dark,
   },
 
   // Footer
@@ -380,6 +411,23 @@ export function BookingVoucherDocument({ data }: { data: VoucherData }) {
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalValue}>{formatCurrency(data.totalPrice)}</Text>
           </View>
+          {/* Deposit payment summary — only shown for deposit bookings */}
+          {data.paymentStatus === 'deposit_paid' && (
+            <>
+              <View style={styles.depositRow}>
+                <Text style={styles.depositLabel}>Paid (deposit):</Text>
+                <Text style={styles.depositValue}>
+                  {formatCurrency(data.amountPaid ?? 0)}
+                </Text>
+              </View>
+              <View style={styles.depositRow}>
+                <Text style={styles.balanceLabel}>Balance due on arrival:</Text>
+                <Text style={styles.balanceValue}>
+                  {formatCurrency(data.balanceDue ?? 0)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Footer */}

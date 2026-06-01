@@ -66,6 +66,9 @@ type BookingStatusSnapshot = {
   payment_method: 'cash' | 'online' | null;
   agency_id: string;
   customer_email: string | null;
+  total_price: number | null;
+  balance_due: number | null;
+  deposit_percent: number | null;
 };
 
 function roundCurrency(value: number): number {
@@ -379,7 +382,7 @@ async function getBookingStatusSnapshot(
 ): Promise<BookingStatusSnapshot | null> {
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, status, payment_method, agency_id, customer_email')
+    .select('id, status, payment_method, agency_id, customer_email, total_price, balance_due, deposit_percent')
     .eq('id', bookingId)
     .maybeSingle();
 
