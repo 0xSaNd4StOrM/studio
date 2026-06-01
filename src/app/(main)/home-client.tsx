@@ -2042,7 +2042,7 @@ export default function HomePageClient({
       )}
 
       {/* Last Minute Offers */}
-      {homeContent.visibility?.lastMinuteOffers !== false && (
+      {homeContent.lastMinuteOffers && homeContent.visibility?.lastMinuteOffers !== false && (
         <section className="container mx-auto px-4 py-16 md:py-24">
           <motion.div
             initial="hidden"
@@ -2224,7 +2224,7 @@ export default function HomePageClient({
       )}
 
       {/* Video Section */}
-      {homeContent.visibility?.videoSection !== false && (
+      {homeContent.videoSection && homeContent.visibility?.videoSection !== false && (
         <section className="relative py-24 md:py-40 text-white overflow-hidden">
           <div className="absolute inset-0 bg-black/50 z-10" />
           <motion.div
@@ -2317,7 +2317,7 @@ export default function HomePageClient({
       )}
 
       {/* News & Articles Section */}
-      {homeContent.visibility?.newsSection !== false && (
+      {homeContent.newsSection && homeContent.visibility?.newsSection !== false && (
         <section className="container mx-auto px-4 py-16 md:py-24">
           <motion.div
             initial="hidden"
