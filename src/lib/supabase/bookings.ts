@@ -32,6 +32,8 @@ import {
   type AgencySettingsData,
 } from '@/lib/supabase/agency-content';
 import { getRoomAddons, getRoomPriceQuote } from '@/lib/supabase/room-pricing';
+import { computeDepositBreakdown, round2, type PaymentChoice } from '@/lib/deposits';
+import { fetchUsdToEgp, usdToEgp } from '@/lib/fx';
 
 type NonRoomCartItem = Exclude<CartItem, RoomCartItem>;
 type PaymentFinalStatus = Extract<Booking['status'], 'Confirmed' | 'Cancelled'>;
@@ -573,6 +575,7 @@ interface CreateBookingData {
   cartItems: CartItem[];
   paymentMethod: 'cash' | 'online';
   promoCode?: string;
+  paymentChoice?: PaymentChoice; // defaults to 'full'
 }
 
 async function deleteNewBookingAfterPersistenceFailure(params: {
@@ -716,6 +719,31 @@ export async function createBooking(data: CreateBookingData) {
 
   const finalTotal = subtotal - discountAmount;
 
+  // ---- Deposit + real-charge computation (server-authoritative) ----
+  // Online-only: cash bookings are paid in person, so they never deposit.
+  const wantsDeposit = data.paymentChoice === 'deposit' && data.paymentMethod === 'online';
+
+  let depositSettingsPercent = 0;
+  let depositEnabled = false;
+  if (wantsDeposit) {
+    const settings = await getAgencySettings({ skipTranslation: true });
+    depositEnabled = settings?.data?.depositEnabled === true;
+    depositSettingsPercent = Number(settings?.data?.depositPercent ?? 0);
+  }
+
+  const paymentChoiceResolved: PaymentChoice =
+    wantsDeposit && depositEnabled ? 'deposit' : 'full';
+  const breakdown = computeDepositBreakdown({
+    totalUsd: finalTotal,
+    choice: paymentChoiceResolved,
+    percent: depositSettingsPercent,
+  });
+
+  // The real EGP charge for the online redirect (deposit amount, or full total).
+  const fxRate = data.paymentMethod === 'online' ? await fetchUsdToEgp() : 0;
+  const chargeUsd = breakdown.depositUsd; // deposit amount, or full total when choice==='full'
+  const chargeEgp = data.paymentMethod === 'online' ? usdToEgp(chargeUsd, fxRate) : 0;
+
   // 2b. Validate tour date availability
   for (const item of nonRoomCartItems) {
     if (item.productType === 'tour' && item.date) {
@@ -772,6 +800,13 @@ export async function createBooking(data: CreateBookingData) {
     // re-written with a new token on each resubmission. That's fine
     // (visitor only sees the latest one in chat / email).
     ...attachShareToken(bookingDate),
+    payment_status: 'unpaid',
+    amount_paid: 0,
+    balance_due: round2(breakdown.balanceUsd),
+    deposit_percent: breakdown.depositPercent,
+    charged_currency: data.paymentMethod === 'online' ? 'EGP' : null,
+    charged_amount: data.paymentMethod === 'online' ? chargeEgp : null,
+    fx_rate_used: data.paymentMethod === 'online' ? fxRate : null,
   };
 
   let bookingData: { id: string } | null = null;
@@ -1116,7 +1151,7 @@ export async function createBooking(data: CreateBookingData) {
     // Non-blocking: booking succeeds even if emails fail
   }
 
-  return bookingId as string;
+  return { bookingId, chargeEgp, chargeUsd, paymentChoice: paymentChoiceResolved };
 }
 
 /**
