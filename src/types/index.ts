@@ -162,6 +162,8 @@ export type UpsellCartItem = {
 
 export type CartItem = TourCartItem | UpsellCartItem | RoomCartItem;
 
+export type PaymentStatus = 'unpaid' | 'deposit_paid' | 'paid_in_full';
+
 export type Booking = {
   id: string;
   customerName: string;
@@ -173,6 +175,10 @@ export type Booking = {
   status: 'Confirmed' | 'Pending' | 'Cancelled';
   paymentMethod?: 'cash' | 'online';
   bookingItems: BookingItem[];
+  paymentStatus?: PaymentStatus;
+  amountPaid?: number;
+  balanceDue?: number;
+  balancePaidAt?: string | null;
 };
 
 export type Customer = {

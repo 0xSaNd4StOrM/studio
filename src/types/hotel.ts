@@ -277,6 +277,8 @@ export type HotelBooking = {
   tax: number;
   fees: number;
   total: number;
+  balanceDue?: number | null;
+  paymentStatus?: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -118,6 +118,36 @@ export default async function BookingDetailsPage({ params }: BookingDetailsPageP
                 }).format(booking.totalPrice)}
               </span>
             </div>
+            {(booking.amountPaid !== undefined || booking.balanceDue !== undefined) && (
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Paid:</span>
+                  <span>${(booking.amountPaid ?? 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Balance due:</span>
+                  <span className={(booking.balanceDue ?? 0) > 0 ? 'font-semibold text-destructive' : ''}>
+                    ${(booking.balanceDue ?? 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+            {(booking.balanceDue ?? 0) > 0 ? (
+              <form
+                action={async () => {
+                  'use server';
+                  const { markBalancePaidAction } = await import('./mark-balance-paid-action');
+                  await markBalancePaidAction(booking.id);
+                }}
+              >
+                <button
+                  type="submit"
+                  className="mt-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground"
+                >
+                  Mark balance paid
+                </button>
+              </form>
+            ) : null}
             <CardDescription>
               This booking includes {booking.bookingItems.length} tour(s).
             </CardDescription>

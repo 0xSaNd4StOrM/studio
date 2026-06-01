@@ -1479,3 +1479,41 @@ async function persistRoomBookings(params: {
     throw error instanceof Error ? error : new Error(getErrorMessage(error));
   }
 }
+
+/**
+ * Mark a booking's balance as paid in full (admin-gated via admin client).
+ * Sets payment_status = 'paid_in_full', amount_paid = total_price, balance_due = 0.
+ */
+export async function markBalancePaid(bookingId: string): Promise<void> {
+  const supabase = await createAdminClient();
+  const agencyId = await getCurrentAgencyId();
+
+  // Fetch the current booking to get total_price and verify agency scope.
+  const { data: booking, error: fetchErr } = await supabase
+    .from('bookings')
+    .select('id, total_price')
+    .eq('id', bookingId)
+    .eq('agency_id', agencyId)
+    .single();
+
+  if (fetchErr || !booking) {
+    throw new Error('Booking not found or access denied.');
+  }
+
+  const totalPrice = Number(booking.total_price ?? 0);
+
+  const { error: updateErr } = await supabase
+    .from('bookings')
+    .update({
+      payment_status: 'paid_in_full',
+      amount_paid: totalPrice,
+      balance_due: 0,
+      balance_paid_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .eq('agency_id', agencyId);
+
+  if (updateErr) {
+    throw new Error(`Failed to mark balance paid: ${updateErr.message}`);
+  }
+}

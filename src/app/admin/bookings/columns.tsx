@@ -352,6 +352,16 @@ export const columns = ({ onUpdateStatus, onDelete }: ColumnsProps): ColumnDef<B
     },
   },
   {
+    accessorKey: 'paymentStatus',
+    header: 'Payment',
+    cell: ({ row }) => {
+      const ps = (row.getValue('paymentStatus') as string) ?? 'unpaid';
+      if (ps === 'paid_in_full') return <Badge variant="default">Paid</Badge>;
+      if (ps === 'deposit_paid') return <Badge variant="secondary">Deposit paid</Badge>;
+      return <Badge variant="outline">—</Badge>;
+    },
+  },
+  {
     id: 'actions',
     cell: ({ row }) => (
       <ActionCell booking={row.original} onUpdateStatus={onUpdateStatus} onDelete={onDelete} />

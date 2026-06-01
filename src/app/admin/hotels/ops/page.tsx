@@ -41,6 +41,7 @@ function nights(checkIn: string, checkOut: string): number {
 }
 
 function BookingRow({ b, kind }: { b: AdminHotelBooking; kind: 'arrival' | 'departure' | 'stay' }) {
+  const outstandingBalance = kind === 'arrival' && (b.balanceDue ?? 0) > 0 ? Number(b.balanceDue) : 0;
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0">
@@ -54,6 +55,11 @@ function BookingRow({ b, kind }: { b: AdminHotelBooking; kind: 'arrival' | 'depa
           {fmtDate(b.checkIn)} → {fmtDate(b.checkOut)} · {nights(b.checkIn, b.checkOut)} night
           {nights(b.checkIn, b.checkOut) === 1 ? '' : 's'}
         </p>
+        {outstandingBalance > 0 && (
+          <p className="text-xs font-medium text-destructive mt-0.5">
+            Collect ${outstandingBalance.toFixed(2)} on arrival
+          </p>
+        )}
       </div>
       <Badge
         variant={

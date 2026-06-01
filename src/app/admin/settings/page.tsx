@@ -289,6 +289,9 @@ const formSchema = z
     defaultCurrency: z.string().optional(),
     adminLanguage: z.string().optional(),
     cartHoldTtlMinutes: z.coerce.number().int().min(1).max(120).default(15),
+    depositEnabled: z.boolean().default(false),
+    depositPercent: z.coerce.number().int().min(1).max(100).default(20),
+    depositPolicyText: z.string().optional(),
     heroSearchType: z.enum(['auto', 'tours', 'hotels']).default('auto'),
     emailSettings: z
       .object({
@@ -478,6 +481,9 @@ export default function SettingsPage() {
       defaultCurrency: 'USD',
       adminLanguage: 'en',
       cartHoldTtlMinutes: 15,
+      depositEnabled: false,
+      depositPercent: 20,
+      depositPolicyText: '',
       heroSearchType: 'auto',
       emailSettings: {
         resendApiKey: '',
@@ -609,6 +615,9 @@ export default function SettingsPage() {
           defaultCurrency: settingsData.defaultCurrency ?? 'USD',
           adminLanguage: settingsData.adminLanguage ?? 'en',
           cartHoldTtlMinutes: settingsData.cartHoldTtlMinutes ?? 15,
+          depositEnabled: settingsData.depositEnabled ?? false,
+          depositPercent: settingsData.depositPercent ?? 20,
+          depositPolicyText: settingsData.depositPolicyText ?? '',
           heroSearchType: settingsData.heroSearchType ?? 'auto',
           emailSettings: {
             resendApiKey: settingsData.emailSettings?.resendApiKey ?? '',
@@ -1088,6 +1097,9 @@ export default function SettingsPage() {
       defaultCurrency: values.defaultCurrency ?? 'USD',
       adminLanguage: values.adminLanguage ?? 'en',
       cartHoldTtlMinutes: values.cartHoldTtlMinutes ?? 15,
+      depositEnabled: values.depositEnabled ?? false,
+      depositPercent: values.depositPercent ?? 20,
+      depositPolicyText: values.depositPolicyText,
       heroSearchType: values.heroSearchType ?? 'auto',
       emailSettings: values.emailSettings
         ? {
@@ -2539,6 +2551,67 @@ export default function SettingsPage() {
                     </FormItem>
                   );
                 }}
+              />
+
+              <FormField
+                control={form.control}
+                name="depositEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Accept deposits</FormLabel>
+                      <FormDescription>
+                        Let guests pay a percentage online now and the balance on arrival.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="depositPercent"
+                render={({ field }) => (
+                  <FormItem className="rounded-lg border p-4">
+                    <FormLabel className="text-base">Deposit percentage (%)</FormLabel>
+                    <FormDescription>
+                      Percent of the order charged online as the deposit. Range 1–100.
+                    </FormDescription>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        className="mt-2 sm:max-w-xs"
+                        value={field.value ?? 20}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="depositPolicyText"
+                render={({ field }) => (
+                  <FormItem className="rounded-lg border p-4">
+                    <FormLabel className="text-base">Deposit policy text</FormLabel>
+                    <FormDescription>Shown to guests at checkout and on the voucher.</FormDescription>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g. Deposit is non-refundable."
+                        className="mt-2"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
             </CardContent>
           </Card>

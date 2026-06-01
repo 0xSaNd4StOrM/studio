@@ -24,7 +24,7 @@ import { translateObject, translateObjects } from '@/lib/translation/translate-o
 const HOTEL_TRANSLATABLE_FIELDS = ['name', 'description'] as const;
 const HOTEL_BOOKING_STATUSES = ['pending', 'paid', 'confirmed', 'cancelled'] as const;
 const HOTEL_BOOKING_SELECT =
-  'id, agency_id, hotel_id, room_type_id, check_in, check_out, units, guests_adults, guests_children, guest_name, guest_email, guest_phone, status, payment_provider, payment_reference, subtotal, tax, fees, total, created_at, updated_at';
+  'id, agency_id, hotel_id, room_type_id, check_in, check_out, units, guests_adults, guests_children, guest_name, guest_email, guest_phone, status, payment_provider, payment_reference, subtotal, tax, fees, total, balance_due, payment_status, created_at, updated_at';
 const HOTEL_BOOKING_STATUS_SELECT =
   'id, agency_id, hotel_id, room_type_id, check_in, check_out, units, status';
 const ROOM_TYPE_TRANSLATABLE_FIELDS = [
@@ -59,6 +59,8 @@ type HotelBookingRow = {
   tax: number | string | null;
   fees: number | string | null;
   total: number | string | null;
+  balance_due: number | string | null;
+  payment_status: string | null;
   created_at: string;
   updated_at: string;
 };
