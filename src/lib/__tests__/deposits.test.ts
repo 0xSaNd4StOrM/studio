@@ -15,6 +15,8 @@ describe('clampPercent', () => {
     expect(clampPercent(150)).toBe(100);
     expect(clampPercent(20.7)).toBe(20);
     expect(clampPercent(NaN)).toBe(1);
+    expect(clampPercent(Infinity)).toBe(1);
+    expect(clampPercent(-5)).toBe(1);
   });
 });
 
@@ -35,13 +37,26 @@ describe('computeDepositBreakdown', () => {
 
   it('keeps deposit + balance == total after rounding', () => {
     const r = computeDepositBreakdown({ totalUsd: 333.33, choice: 'deposit', percent: 33 });
-    expect(round2(r.depositUsd + r.balanceUsd)).toBe(333.33);
+    expect(r.depositUsd + r.balanceUsd).toBeCloseTo(333.33, 10);
   });
 
   it('treats an out-of-range percent safely', () => {
     const r = computeDepositBreakdown({ totalUsd: 500, choice: 'deposit', percent: 999 });
     expect(r.depositPercent).toBe(100);
     expect(r.depositUsd).toBe(500);
+    expect(r.balanceUsd).toBe(0);
+  });
+
+  it('handles a zero total', () => {
+    const r = computeDepositBreakdown({ totalUsd: 0, choice: 'deposit', percent: 30 });
+    expect(r.depositUsd).toBe(0);
+    expect(r.balanceUsd).toBe(0);
+    expect(r.depositPercent).toBe(30);
+  });
+
+  it('treats a negative total as zero', () => {
+    const r = computeDepositBreakdown({ totalUsd: -100, choice: 'deposit', percent: 20 });
+    expect(r.depositUsd).toBe(0);
     expect(r.balanceUsd).toBe(0);
   });
 });

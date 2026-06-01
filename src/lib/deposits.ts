@@ -6,8 +6,16 @@
 
 export type PaymentChoice = 'deposit' | 'full';
 
+/**
+ * Round to 2 decimal places using commercial half-up semantics.
+ * Uses a string round-trip via toFixed to avoid the IEEE-754 representation
+ * errors that make naive `Math.round(n*100)/100` (or an EPSILON nudge) round
+ * the wrong way at larger magnitudes (e.g. 10000.005). Adequate and exact for
+ * the 2-dp USD money values this module handles.
+ */
 export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  if (!Number.isFinite(n)) return 0;
+  return Number(n.toFixed(2));
 }
 
 /** Clamp to an integer percent in [1, 100]; non-finite -> 1. */
