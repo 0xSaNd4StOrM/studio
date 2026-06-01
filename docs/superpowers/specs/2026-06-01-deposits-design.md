@@ -2,7 +2,7 @@
 # Deposits (Partial Payment) — Design Spec
 
 **Date:** 2026-06-01
-**Status:** Approved (pending spec review)
+**Status:** Implemented 2026-06-01
 **Scope:** Let guests pay a deposit (a percentage of the order) online now and settle the balance on arrival.
 
 ---
