@@ -2,26 +2,10 @@ import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { getAgencyAiConfig } from '@/lib/supabase/agency-ai-config';
 import { buildKashierHppUrl } from '@/lib/kashier';
+import { fetchUsdToEgp, usdToEgp } from '@/lib/fx';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const FALLBACK_USD_TO_EGP = 47.5;
-
-async function fetchUsdToEgp(): Promise<number> {
-  try {
-    const res = await fetch(
-      'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
-      { next: { revalidate: 3600 } }
-    );
-    if (!res.ok) return FALLBACK_USD_TO_EGP;
-    const data = (await res.json()) as { usd?: Record<string, number> };
-    const rate = data.usd?.egp;
-    return typeof rate === 'number' && rate > 0 ? rate : FALLBACK_USD_TO_EGP;
-  } catch {
-    return FALLBACK_USD_TO_EGP;
-  }
-}
 
 /**
  * GET /api/booking/[token]/pay
@@ -87,7 +71,7 @@ export async function GET(
   }
 
   const rate = await fetchUsdToEgp();
-  const amountEgp = Math.round(row.total_price * rate * 100) / 100;
+  const amountEgp = usdToEgp(row.total_price, rate);
 
   try {
     const paymentUrl = await buildKashierHppUrl({
